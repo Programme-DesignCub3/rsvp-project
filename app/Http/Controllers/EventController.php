@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Banner;
 use App\Models\Event;
 use App\Models\Member;
 use App\Models\Visitor;
@@ -55,6 +56,8 @@ class EventController extends Controller
             $skeletonsCount = 0;
         }
 
+        $showcases = Banner::where('enable', true)->orderBy('order_column')->get();
+
         return view('events', [
             'events' => $events,
             'past_events' => $past_events,
@@ -62,6 +65,7 @@ class EventController extends Controller
             'memberCount' => $memberCount,
             'visitorCount' => $visitorCount,
             'skeletonsCount' => $skeletonsCount,
+            'showcases' => $showcases,
         ]);
     }
 

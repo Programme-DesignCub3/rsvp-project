@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Casts;
+
 use App\Enums\VisitorType;
 
 class VisitorTypeCast

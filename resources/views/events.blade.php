@@ -33,11 +33,13 @@
             {{-- mobile grid --}}
             <x-event-list.mobile :events="$events" />
 
-
             @include('components.magnitude-home-pitch')
 
             <x-home-why-bni />
 
+            @if (!$showcases->isEmpty())
+                <x-activities :showcases="$showcases" />
+            @endif
 
             <x-event-list-title>
                 LATEST UPDATES

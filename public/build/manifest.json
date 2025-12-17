@@ -1,12 +1,21 @@
 {
   "resources/css/app.css": {
-    "file": "assets/app-vd0XMGCP.css",
+    "file": "assets/app-Dd6_X1zJ.css",
     "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/css/filament/admin/theme.css": {
+    "file": "assets/theme-BuHQuRID.css",
+    "src": "resources/css/filament/admin/theme.css",
     "isEntry": true
   },
   "resources/img/landing-bg-pattern.svg": {
     "file": "assets/landing-bg-pattern-D4jUfvHa.svg",
     "src": "resources/img/landing-bg-pattern.svg"
+  },
+  "resources/img/showcase-bg.png": {
+    "file": "assets/showcase-bg-C2NwjzWi.png",
+    "src": "resources/img/showcase-bg.png"
   },
   "resources/img/stats-bg.svg": {
     "file": "assets/stats-bg-BqF1AH-j.svg",
@@ -17,13 +26,13 @@
     "src": "resources/img/why-bni-bg.png"
   },
   "resources/js/app.js": {
-    "file": "assets/app-CVECF1Tp.js",
+    "file": "assets/app-BUGA4AGJ.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true
   },
   "resources/js/landing.js": {
-    "file": "assets/landing-C-Ue7rnr.js",
+    "file": "assets/landing-CW8rs4__.js",
     "name": "landing",
     "src": "resources/js/landing.js",
     "isEntry": true

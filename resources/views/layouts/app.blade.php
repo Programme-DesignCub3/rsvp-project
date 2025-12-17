@@ -70,6 +70,7 @@
                 ],
             ];
         @endphp
+
         <div class="mx-auto w-full max-w-none px-4 lg:max-w-5xl lg:px-0">
             <x-container>
                 <nav class="relative z-10 w-auto" x-data="{
@@ -253,9 +254,8 @@
                         </template>
                     </div>
                     </template>
-
-
         </div>
+
 
         {{-- /* ********************** DESKTOP SUBITEMS ********************** */ --}}
         <template x-if="isBreakpoint('lg')">
@@ -277,14 +277,14 @@
                                     </x-event-list-title>
                                 </div>
                                 <div class="grid gap-6 lg:grid-cols-2">
-                                    @foreach ($item['subItems'] as $subitem)
+                                    @foreach ($item['subItems'] as $subItem)
                                         <a class="block rounded px-3.5 py-3 text-sm hover:bg-neutral-100"
-                                            href="{{ $subitem->href ?? '#' }}" @click="navigationMenuClose()">
+                                            href="{{ $subItem->href ?? '#' }}" @click="navigationMenuClose()">
                                             <span
-                                                class="mb-1 block font-medium text-black">{{ $subitem->name }}</span>
-                                            @if (!empty($subitem->description))
+                                                class="mb-1 block font-medium text-black">{{ $subItem->name }}</span>
+                                            @if (!empty($subItem->description))
                                                 <span
-                                                    class="block font-light leading-5 opacity-50">{{ $subitem->description }}</span>
+                                                    class="block font-light leading-5 opacity-50">{{ $subItem->description }}</span>
                                             @endif
                                         </a>
                                     @endforeach

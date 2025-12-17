@@ -23,5 +23,18 @@ const config = {
 const carouselNow = new Glide("#glide-now", config);
 const carouselPast = new Glide("#glide-past", { ...config, autoplay: 4000 });
 
+const showcaseSliderElement = document.getElementById("glide-showcase");
+
+if (showcaseSliderElement) {
+    const carouselShowcase = new Glide("#glide-showcase", {
+        type: "slider",
+        perView: 1,
+        // gap: 24,
+        // autoplay: 4000,
+        // perView: 3,
+    });
+    carouselShowcase.mount();
+}
+
 carouselNow.mount();
 carouselPast.mount();

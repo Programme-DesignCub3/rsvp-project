@@ -9,6 +9,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.1",
+        "awcodes/matinee": "^1.0",
         "blade-ui-kit/blade-heroicons": "^2.5",
         "codeat3/blade-typicons": "^1.6",
         "filament/filament": "^3.2",
@@ -19,6 +20,7 @@
         "laravel/tinker": "^2.8",
         "livewire/livewire": "^3.5",
         "mallardduck/blade-lucide-icons": "^1.23",
+        "spatie/eloquent-sortable": "^4.5",
         "spatie/image": "^3.7",
         "spatie/laravel-medialibrary": "^11.9",
         "spatie/laravel-sluggable": "^3.6",
