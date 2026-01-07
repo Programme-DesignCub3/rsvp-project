@@ -4,7 +4,12 @@
 @section('page')
     <div class="min-h-screen">
         <div>
-            @livewire('registran-form-component', ['slug' => $slug, 'event' => $event])
+
+            @if ($event->slug == 'bni-golf-12-feb-2026')
+                @livewire('bni-golf-12-feb-2026', ['slug' => $slug, 'event' => $event])
+            @else
+                @livewire('registran-form-component', ['slug' => $slug, 'event' => $event])
+            @endif
         </div>
     </div>
 @endsection

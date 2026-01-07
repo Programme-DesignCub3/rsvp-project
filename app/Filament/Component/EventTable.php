@@ -57,7 +57,7 @@ class EventTable
                 ->formatStateUsing(
                     fn ($state): string => in_array($state, array_column(VisitorType::cases(), 'value'))
                         ? VisitorType::from($state)->getLabel()
-                        : 'Unknown'
+                        : (! empty($state) ? $state : 'Unknown')
                 ),
             TextColumn::make('name')
                 ->sortable()
@@ -104,8 +104,11 @@ class EventTable
                         }
                     }
 
-                    return implode("\n", $meta);
+                    return implode(";\n", $meta);
                 })
+                ->listWithLineBreaks()
+                ->separator(';')
+                ->bulleted()
                 ->label('extra info'),
 
             TextColumn::make('food')
