@@ -148,7 +148,9 @@
                             <div class="border border-black px-4 pb-4 pt-4 lg:px-8 lg:pb-6 lg:pt-8">
                                 <div class="flex flex-col space-y-4">
                                     <div>
-                                        <h5 class="text-xl font-bold text-gray-800">OFFLINE MEETING</h5>
+                                        @if ($event->slug !== 'bni-golf-12-feb-2026')
+                                            <h5 class="text-xl font-bold text-gray-800">OFFLINE MEETING</h5>
+                                        @endif
                                         <h5 class="text-xl font-bold lg:text-2xl">
                                             {{ $event->detail->offline_time_no_seconds }}
                                         </h5>

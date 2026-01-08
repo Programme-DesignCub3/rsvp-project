@@ -37,7 +37,7 @@ class BniGolf12Feb2026 extends Component
 
     public $type = '';
 
-    public $chapter = null;
+    public $chapter = '';
 
     public $visitor_type = '';
 
