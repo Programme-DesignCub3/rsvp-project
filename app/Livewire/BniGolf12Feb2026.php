@@ -86,6 +86,7 @@ class BniGolf12Feb2026 extends Component
                     ->where('event_id', $this->event->id);
             }),
             'type' => ['required'],
+            'shirt_type' => ['required'],
 
         ];
 
