@@ -30,7 +30,7 @@ if (showcaseSliderElement) {
         type: "slider",
         perView: 1,
         // gap: 24,
-        // autoplay: 4000,
+        autoplay: 4000,
         // perView: 3,
     });
     carouselShowcase.mount();
