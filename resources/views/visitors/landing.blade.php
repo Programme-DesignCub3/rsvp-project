@@ -30,8 +30,8 @@
                 <span class="lg:leading-[100px]"><img class="max-w-20 lg:max-w-48" src="{{ asset('img/logo_bni.svg') }}"
                         alt="LOGO BNI"></span>
                 <h2 class="pt-4 text-4xl font-black lg:text-[80px] lg:leading-[100px]">
-                    @if ($event->slug == 'bni-magnitude-1st-anniversary')
-                        ANNIVERSARY <BR>DINNER
+                    @if ($event->slug == 'bni-golf-12-feb-2026')
+                        GOLF TOURNAMENT
                     @else
                         NETWORKING <br>MEETING
                     @endif
@@ -40,7 +40,10 @@
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-20">
 
                 <div>
-                    <div class="mb-4 px-4 text-lg font-semibold leading-loose text-gray-700 lg:px-0">
+                    <div @class([
+                        'mb-4 px-4 text-lg leading-loose text-gray-700 lg:px-0',
+                        'font-semibold ' => !$event->detail->override_description_1,
+                    ])>
                         @if ($event->detail->override_description_1)
                             {!! $event->detail->description_1 !!}
                         @else
@@ -76,7 +79,10 @@
                     <h4 class="mb-1 px-4 pt-4 text-2xl font-bold leading-loose text-gray-800 lg:px-0">What is <img
                             class="inline max-w-14" src="{{ asset('img/logo_bni.svg') }}" alt="LOGO BNI">?</h4>
 
-                    <div class="px-4 text-lg font-semibold leading-loose text-gray-700 lg:px-0">
+                    <div @class([
+                        'px-4 text-lg leading-loose text-gray-700 lg:px-0',
+                        'font-semibold' => !$event->detail->override_description_2,
+                    ])>
                         @if ($event->detail->override_description_2)
                             {!! $event->detail->description_2 !!}
                         @else
@@ -130,7 +136,9 @@
                                 @if ($event->is_offline_event && $event->is_online_event)
                                     <div
                                         class="absolute bottom-0 translate-y-2 bg-black p-px text-sm font-bold leading-[17px] text-white lg:translate-y-4 lg:p-1">
-                                        AND / OR
+                                        @if (!$event->checkable_one)
+                                            AND /
+                                        @endif OR
                                     </div>
                                 @endif
                             </div>

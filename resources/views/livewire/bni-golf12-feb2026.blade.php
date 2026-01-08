@@ -21,7 +21,7 @@
                                 <p class="flex items-center space-x-1 text-2xl font-medium leading-none lg:text-[42px]">
                                     <img class="w-10 lg:w-16" src="{{ asset('img/logo_bni.svg') }}" alt="">
                                     <span>
-                                        NETWORKING MEETING
+                                        GOLF TOURNAMENT
                                     </span>
                                 </p>
 
@@ -77,8 +77,9 @@
                             {{-- Handicap --}}
                             <div class="form-group">
                                 <label class="form-label text-black" for="handicap">HANDICAP:</label>
-                                <input class="w-full border border-black p-2" id="handicap" type="text"
-                                    wire:model='handicap' />
+                                <input class="w-full border border-black p-2" id="handicap"
+                                    placeholder="Select Handicap 1-32" type="number" min="1" max="32"
+                                    step="1" wire:model='handicap' />
                                 <div>
                                     @error('handicap')
                                         <span class="error-form-message">{{ $message }}</span>
@@ -108,11 +109,11 @@
 
                             {{-- BNI / Non-BNI --}}
                             <div class="form-group">
-                                <label class="form-label text-black" for="type">BNI / Non-BNI:</label>
+                                <label class="form-label text-black" for="type">BNI / NON-BNI:</label>
                                 <select class="w-full border border-black p-2" id="type" wire:model.live="type">
                                     <option value="" selected disabled>Select registration type</option>
                                     <option value="bni">BNI</option>
-                                    <option value="non_bni">Non-BNI</option>
+                                    <option value="non_bni">NON-BNI</option>
                                 </select>
 
                                 <div>
@@ -126,13 +127,13 @@
                                 @if (!empty($type) && $type !== null)
                                     @if ($type !== 'bni')
                                         <div class="form-group">
-                                            <label class="form-label text-black" for="visitor_type">Visitor
-                                                type:</label>
+                                            <label class="form-label text-black" for="visitor_type">PERSONAL /
+                                                COMPANY:</label>
                                             <select class="w-full border border-black p-2" id="visitor_type"
                                                 wire:model.live="visitor_type">
-                                                <option value="" selected disabled>Select Visitor type</option>
-                                                <option value="personal">Personal</option>
-                                                <option value="company">Perusahaan</option>
+                                                <option value="" selected disabled>PERSONAL / COMPANY</option>
+                                                <option value="personal">PERSONAL</option>
+                                                <option value="company">COMPANY</option>
                                             </select>
 
                                             <div>
@@ -144,7 +145,8 @@
 
                                         @if (!empty($visitor_type) && $visitor_type !== null && $visitor_type !== 'personal')
                                             <div class="form-group">
-                                                <label class="form-label text-black" for="company">COMPANY:</label>
+                                                <label class="form-label text-black" for="company">COMPANY
+                                                    NAME:</label>
                                                 <input class="w-full border border-black p-2" id="company"
                                                     type="text" wire:model='company' />
                                                 <div>
@@ -156,7 +158,7 @@
                                         @endif
                                     @else
                                         <div class="form-group">
-                                            <label class="form-label text-black" for="chapter">Chapter:</label>
+                                            <label class="form-label text-black" for="chapter">CHAPTER NAME:</label>
                                             <input class="w-full border border-black p-2" id="chapter" type="text"
                                                 wire:model='chapter' />
                                             <div>

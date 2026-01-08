@@ -31,7 +31,7 @@ class BniGolf12Feb2026 extends Component
 
     public $email = null;
 
-    public $handicap = '';
+    public $handicap = null;
 
     public $shirt_size = '';
 
@@ -80,7 +80,7 @@ class BniGolf12Feb2026 extends Component
         $rule = [
             'name' => 'required',
             'phone' => 'required',
-            'handicap' => ['max:32'],
+            'handicap' => ['required', 'numeric', 'min:1', 'max:32'],
             'email' => Rule::unique('visitors')->where(function ($query) {
                 return $query->where('email', $this->email)
                     ->where('event_id', $this->event->id);
