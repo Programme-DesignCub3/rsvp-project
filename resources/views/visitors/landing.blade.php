@@ -238,7 +238,9 @@
                             @if ($event->detail->override_deadline_text)
                                 {!! $event->detail->deadline_text !!}
                             @else
-                                REGISTRATION WILL BE CLOSED H-1 AT 15.00 WIB
+                                REGISTRATION WILL BE CLOSED ON
+                                {{ \Carbon\Carbon::parse($event->registration_end)->formatLocalized('%A, %d %B %Y') }}
+                                WIB
                             @endif
                         </div>
                     </div>
