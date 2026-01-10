@@ -293,12 +293,12 @@
                         {{-- PACKAGE SELECTED --}}
                         <div>
 
-                            <div>
+                            {{-- <div>
                                 <h5 class="text-lg font-bold text-gray-800">PAKET MAKANAN + MINUMAN</h5>
                                 <h4 class="text-xl font-bold lg:text-2xl">
                                     {{ $this->visitor->package }}
                                 </h4>
-                            </div>
+                            </div> --}}
 
                             {{-- ORDER ID --}}
                             <div>
