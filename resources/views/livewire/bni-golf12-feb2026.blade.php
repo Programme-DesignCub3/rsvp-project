@@ -309,7 +309,7 @@
                             </div>
 
                             {{-- PAYMENT --}}
-                            <div class="mt-6">
+                            {{-- <div class="mt-6">
                                 <h5 class="mb-2 text-lg font-bold">WHAT TO PREPARE</h5>
                                 <ul class="list-inside list-disc">
                                     @if ($this->event->slug != 'fun-bay-networking')
@@ -320,7 +320,7 @@
                                     <li class="text-lg font-medium">Prepare Your Business Introduction</li>
                                     <li class="text-lg font-medium">Please be on-time</li>
                                 </ul>
-                            </div>
+                            </div> --}}
                         </div>
 
                     </div>
