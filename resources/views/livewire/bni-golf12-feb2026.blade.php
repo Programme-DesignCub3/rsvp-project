@@ -277,7 +277,7 @@
 
                     <div class="space-y-4 border border-black px-4 py-4 lg:px-6">
                         <h4 class="text-xl font-bold lg:text-2xl">
-                            OFFLINE MEETING {{ $this->event->detail->offline_time_no_seconds }}
+                            {{ $this->event->detail->offline_time_no_seconds }} WIB
                         </h4>
 
                         <div>

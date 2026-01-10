@@ -352,7 +352,7 @@
                     @if ($this->isOnlineSelected)
                         <div class="space-y-4 border border-black px-4 py-4 lg:px-6">
                             <h4 class="text-xl font-bold lg:text-2xl">
-                                ONLINE ZOOM MEETING {{ $this->event->detail->online_time_no_seconds }}
+                                ONLINE ZOOM MEETING {{ $this->event->detail->online_time_no_seconds }} WIB
                             </h4>
                             <div>
                                 <h5 class="text-lg font-bold text-gray-800 lg:text-xl">LINK ZOOM</h5>
@@ -396,7 +396,7 @@
                     @if ($this->isOfflineSelected)
                         <div class="space-y-4 border border-black px-4 py-4 lg:px-6">
                             <h4 class="text-xl font-bold lg:text-2xl">
-                                OFFLINE MEETING {{ $this->event->detail->offline_time_no_seconds }}
+                                OFFLINE MEETING {{ $this->event->detail->offline_time_no_seconds }} WIB
                             </h4>
 
                             <div>

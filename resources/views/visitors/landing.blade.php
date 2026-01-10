@@ -122,7 +122,7 @@
                                     <div>
                                         <h5 class="text-xl font-bold text-gray-800">ZOOM ONLINE</h5>
                                         <h5 class="text-xl font-bold lg:text-2xl">
-                                            {{ $event->detail->online_time_no_seconds }}
+                                            {{ $event->detail->online_time_no_seconds }} WIB
                                         </h5>
                                     </div>
                                     <div class="text-center">
@@ -152,7 +152,7 @@
                                             <h5 class="text-xl font-bold text-gray-800">OFFLINE MEETING</h5>
                                         @endif
                                         <h5 class="text-xl font-bold lg:text-2xl">
-                                            {{ $event->detail->offline_time_no_seconds }}
+                                            {{ $event->detail->offline_time_no_seconds }} WIB
                                         </h5>
                                         {!! $event->detail->offline_address !!}
                                     </div>
