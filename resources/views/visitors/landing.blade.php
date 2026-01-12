@@ -178,11 +178,11 @@
 
                         @if ($event->slug !== 'bni-golf-12-feb-2026')
                             <div class="border border-black px-4 py-4 lg:px-8 lg:py-6 [&_ul]:list-inside [&_ul]:list-disc">
+                                <h5 class="mb-2 text-lg font-bold">WHAT TO PREPARE</h5>
 
                                 @if ($event->detail->override_what_to_prepare)
                                     {!! $event->detail->what_to_prepare !!}
                                 @else
-                                    <h5 class="mb-2 text-lg font-bold">WHAT TO PREPARE</h5>
                                     <h6>Dresscode</h6>
                                     <ul class="list-inside list-disc">
                                         @if ($event->slug == 'bni-magnitude-1st-anniversary')
