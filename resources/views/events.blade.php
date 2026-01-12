@@ -51,6 +51,20 @@
                         target="_blank">Powered by Curator.io</a></div>
             </div>
 
+            <div class="mx-8 md:mx-16">
+                <div
+                    class="mb-16 mt-8 flex justify-between gap-4 rounded-xl bg-red-bni p-4 px-6 text-lg font-semibold text-white max-md:flex-wrap md:rounded-3xl md:p-6 md:px-8">
+                    <p class="">
+                        If you're a business owner looking to grow your network and accelerate your business, join us at BNI
+                        Magnitude.
+                    </p>
+                    <a class="rounded-lg bg-bni-gold-dark p-2 px-4 text-center font-semibold text-black max-md:w-full md:rounded-xl"
+                        href="{{ route('contact.index') }}">
+                        CONTACT US FOR INVITATION!
+                    </a>
+                </div>
+            </div>
+
             <x-event-list-title>
                 Past events
             </x-event-list-title>

@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Redirect;
 
 class ContactController extends Controller
 {
-
     public function index()
     {
         return view('contact.index');
@@ -23,13 +22,12 @@ class ContactController extends Controller
             'companyName' => 'required',
             'email' => 'required|email',
             'phone' => 'required',
-            'message' => 'required'
+            'message' => 'required',
         ]);
 
-        if ($validatedData === false) {
+        if (! $validatedData) {
             return Redirect::back()->withErrors($request->all())->withInput();
         }
-
 
         Mail::to('david@designcub3.com')
             ->send(new \App\Mail\ContactMail($validatedData));
