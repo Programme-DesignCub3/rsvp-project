@@ -88,16 +88,24 @@
                             </div>
 
                             {{-- UKURAN BAJU --}}
+                            {{--
+                            XS (Chest: 51 - Body Length: 72)
+                            S (Chest: 53 - Body Length: 74)
+                            M (Chest: 55,5 - Body Length: 76)
+                            L (Chest: 58 - Body Length: 80)
+                            XL (Chest: 60 - Body Length: 82)
+                            XXL (Chest: 62 - Body Length: 84)
+                            --}}
                             <div class="form-group">
                                 <label class="form-label text-black" for="shirt_size">SHIRT SIZE:</label>
                                 <select class="w-full border border-black p-2" id="shirt_size" wire:model="shirt_size">
                                     <option value="" selected disabled>Select shirt size</option>
-                                    <option value="XS">XS</option>
-                                    <option value="S">S</option>
-                                    <option value="M">M</option>
-                                    <option value="L">L</option>
-                                    <option value="XL">XL</option>
-                                    <option value="XXL">XXL</option>
+                                    <option value="XS">XS (Chest: 51 - Body Length: 72)</option>
+                                    <option value="S">S (Chest: 53 - Body Length: 74)</option>
+                                    <option value="M">M (Chest: 55,5 - Body Length: 76)</option>
+                                    <option value="L">L (Chest: 58 - Body Length: 80)</option>
+                                    <option value="XL">XL (Chest: 60 - Body Length: 82)</option>
+                                    <option value="XXL">XXL (Chest: 62 - Body Length: 84)</option>
                                 </select>
 
                                 <div>

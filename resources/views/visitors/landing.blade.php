@@ -177,21 +177,27 @@
                         @endif
 
                         @if ($event->slug !== 'bni-golf-12-feb-2026')
-                            <div class="border border-black px-4 py-4 lg:px-8 lg:py-6">
-                                <h5 class="mb-2 text-lg font-bold">WHAT TO PREPARE</h5>
-                                <h6>Dresscode</h6>
-                                <ul class="list-inside list-disc">
-                                    @if ($event->slug == 'bni-magnitude-1st-anniversary')
-                                        <li>Chic n Simple Gown/Dress and Suits/Shirt with long pants</li>
-                                        <li>White/Beige/Nude Colour</li>
-                                    @else
-                                        @if ($event->is_offline_event)
-                                            <li class="text-lg font-medium">Bring Professional Namecards</li>
-                                        @endif
+                            <div class="border border-black px-4 py-4 lg:px-8 lg:py-6 [&_ul]:list-inside [&_ul]:list-disc">
 
-                                        <li class="text-lg font-medium">Prepare Your Business Introduction</li>
-                                    @endif
-                                </ul>
+                                @if ($event->detail->override_what_to_prepare)
+                                    {!! $event->detail->what_to_prepare !!}
+                                @else
+                                    <h5 class="mb-2 text-lg font-bold">WHAT TO PREPARE</h5>
+                                    <h6>Dresscode</h6>
+                                    <ul class="list-inside list-disc">
+                                        @if ($event->slug == 'bni-magnitude-1st-anniversary')
+                                            <li>Chic n Simple Gown/Dress and Suits/Shirt with long pants</li>
+                                            <li>White/Beige/Nude Colour</li>
+                                        @else
+                                            @if ($event->is_offline_event)
+                                                <li class="text-lg font-medium">Bring Professional Namecards</li>
+                                            @endif
+
+                                            <li class="text-lg font-medium">Prepare Your Business Introduction</li>
+                                        @endif
+                                    </ul>
+                                @endif
+
                             </div>
                         @endif
 

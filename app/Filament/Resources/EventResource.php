@@ -286,6 +286,13 @@ class EventResource extends Resource
                                             ]
                                         ),
 
+                                    Toggle::make('override_what_to_prepare')
+                                        ->live(),
+                                    RichEditor::make('what_to_prepare')
+                                        ->hidden(fn (Get $get): bool => ! $get('override_what_to_prepare'))
+                                        ->required(fn (Get $get): bool => $get('override_what_to_prepare'))
+                                        ->columnSpanFull(),
+
                                     Toggle::make('override_description_1')
                                         ->live(),
                                     RichEditor::make('description_1')
