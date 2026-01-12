@@ -25,9 +25,9 @@ class ContactController extends Controller
             'message' => 'required',
         ]);
 
-        if (! $validatedData) {
-            return Redirect::back()->withErrors($request->all())->withInput();
-        }
+        // if (! $validatedData) {
+        //     return Redirect::back()->withErrors($request->all())->withInput();
+        // }
 
         Mail::to('david@designcub3.com')
             ->send(new \App\Mail\ContactMail($validatedData));
