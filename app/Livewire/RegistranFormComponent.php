@@ -399,7 +399,7 @@ class RegistranFormComponent extends Component
             $data['is_online'] = true;
         }
 
-        if ($this->event->detail->food_required) {
+        if ($this->event->detail->food_required && $this->isOfflineSelected()) {
             $this->validate(
                 ['food' => 'required'],
                 ['food.required' => '* mandatory'],
