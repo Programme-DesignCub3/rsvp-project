@@ -83,11 +83,12 @@ class RegistranFormComponent extends Component
 
     public function updatingSessions($value, $key)
     {
-        if ($this->event->checkable_one) {
+        // if ($this->event->checkable_one) {
 
-        }
+        // }
 
         // $this->updateVisitorType();
+
         $this->reset('status');
         $this->reset('substituted_by');
         // $this->status = '';
@@ -393,6 +394,9 @@ class RegistranFormComponent extends Component
                 ->first();
 
             $data['order_id'] = $this->generateOrderId($lastVisitor);
+        } else {
+            $data['food'] = null;
+            // dd($data['food']);
         }
 
         if ($this->isOnlineSelected()) {
