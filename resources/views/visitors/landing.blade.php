@@ -30,7 +30,7 @@
                 <span class="lg:leading-[100px]"><img class="max-w-20 lg:max-w-48" src="{{ asset('img/logo_bni.svg') }}"
                         alt="LOGO BNI"></span>
                 <h2 class="pt-4 text-4xl font-black lg:text-[80px] lg:leading-[100px]">
-                    @if ($event->slug == 'bni-golf-12-feb-2026')
+                    @if ($event->slug == 'bni-golf-17-apr-2026')
                         GOLF TOURNAMENT
                     @else
                         NETWORKING <br>MEETING
