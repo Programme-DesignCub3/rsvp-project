@@ -55,7 +55,8 @@
             <a class="group bg-red-bni py-4 pb-6 text-center text-xl font-semibold uppercase text-white transition duration-500 ease-in-out hover:bg-red-bni/90"
                 href="{{ route('event.show', $event->slug) }}">
                 {{-- <span> --}}
-                Register
+                {{-- Register --}}
+                READ MORE
                 {{-- </span> --}}
                 {{-- <x-heroicon-o-arrow-right class="inline h-5 w-5 font-bold" /> --}}
             </a>
