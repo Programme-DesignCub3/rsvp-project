@@ -102,11 +102,14 @@
 
                 <div class="space-y-6 px-4 lg:px-0">
 
-                    <img class="max-w-48 lg:max-w-[400px]" src="{{ asset('img/logo-bni.png') }}" alt="">
+                    @if ($event->slug != 'bni-golf-17-apr-2026')
+                        <img class="max-w-48 lg:max-w-[400px]" src="{{ asset('img/logo-bni.png') }}" alt="">
 
-                    <h1 class="!mt-0 text-lg font-bold lg:text-2xl">Join us for this opportunity to connect, collaborate,
-                        and
-                        expand your network!</h1>
+                        <h1 class="!mt-0 text-lg font-bold lg:text-2xl">Join us for this opportunity to connect,
+                            collaborate,
+                            and
+                            expand your network!</h1>
+                    @endif
 
                     <div class="">
                         <div class="border border-black px-4 py-4 lg:px-8 lg:py-6">
