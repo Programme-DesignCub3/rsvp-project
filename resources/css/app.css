@@ -21,7 +21,7 @@
     }
 
     .btn {
-        @apply text-white text-lg lg:text-2xl font-semibold px-6 py-3 inline-block disabled:hover:scale-100 scale-100 hover:scale-105 transition-all ease-in-out rounded-lg;
+        @apply inline-block px-6 py-3 rounded-lg font-semibold text-white text-lg lg:text-2xl scale-100 hover:scale-105 disabled:hover:scale-100 transition-all ease-in-out;
     }
 
     .form-group {
@@ -30,11 +30,6 @@
 
     .form-group .form-label {
         @apply font-semibold text-lg;
-    }
-
-    body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        color: #333;
     }
 
     #countdown {
