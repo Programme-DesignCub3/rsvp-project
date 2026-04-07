@@ -1,11 +1,11 @@
 {
   "resources/css/app.css": {
-    "file": "assets/app-D6zKGMuK.css",
+    "file": "assets/app-CbELWsfx.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/css/filament/admin/theme.css": {
-    "file": "assets/theme-B0I-Qgl3.css",
+    "file": "assets/theme-BuHQuRID.css",
     "src": "resources/css/filament/admin/theme.css",
     "isEntry": true
   },
@@ -26,13 +26,13 @@
     "src": "resources/img/why-bni-bg.png"
   },
   "resources/js/app.js": {
-    "file": "assets/app-CVECF1Tp.js",
+    "file": "assets/app-BUGA4AGJ.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true
   },
   "resources/js/landing.js": {
-    "file": "assets/landing-sswytm_O.js",
+    "file": "assets/landing-BYFU14bj.js",
     "name": "landing",
     "src": "resources/js/landing.js",
     "isEntry": true
