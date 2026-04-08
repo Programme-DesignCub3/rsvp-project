@@ -24,13 +24,13 @@
         </div>
     </header>
 
+    @if ($event->slug == 'bni-golf-17-apr-2026')
+        <div class="relative mb-4 overflow-hidden">
+            <img class="w-full" src="{{ asset('img/hardcoded/golf-h-1.jpeg') }}" alt="">
+        </div>
+    @endif
 
     <div class="container mx-auto w-full space-y-4 pb-16 pt-6 lg:lg:w-[1200px] lg:space-y-6 lg:pt-14">
-        @if ($event->slug == 'bni-golf-17-apr-2026')
-            <div class="relative my-4 overflow-hidden">
-                <img class="w-full" src="{{ asset('img/hardcoded/golf-h-1.jpeg') }}" alt="">
-            </div>
-        @endif
 
         <div class="container w-full px-4 lg:w-[1200px] lg:px-0">
             <span class="lg:leading-[100px]"><img class="max-w-20 lg:max-w-48" src="{{ asset('img/logo_bni.svg') }}"
