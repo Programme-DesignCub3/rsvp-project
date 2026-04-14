@@ -26,7 +26,7 @@
 
     @if ($event->slug == 'bni-golf-17-apr-2026')
         <div class="relative mb-4 overflow-hidden">
-            <img class="w-full" src="{{ asset('img/hardcoded/golf-h-2.jpeg') }}" alt="">
+            <img class="w-full" src="{{ asset('hardcoded/golf-h-2.jpeg') }}" alt="">
         </div>
     @endif
 
