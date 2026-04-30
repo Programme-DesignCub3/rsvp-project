@@ -150,7 +150,28 @@ class EventResource extends Resource
                                                 ->url()
                                                 ->columnSpanFull(),
 
-                                            Toggle::make('show_invoice_upload'),
+                                            Toggle::make('show_invoice_upload')
+                                                ->live(),
+
+                                            Select::make('excluded_payment_list')
+                                                ->multiple()
+                                                ->options(
+                                                    VisitorType::class
+                                                )
+                                                ->hidden(fn (Get $get): bool => ! $get('show_invoice_upload'))
+                                                // ->required(fn (Get $get): bool => $get('show_invoice_upload'))
+                                                ->hintActions(
+                                                    [
+                                                        fn (Select $component) => Action::make('select all')
+                                                            ->action(
+                                                                fn () => $component->state(array_column(VisitorType::cases(), 'value'))
+                                                            ),
+                                                        fn (Select $component) => Action::make('deselect all')
+                                                            ->action(
+                                                                fn () => $component->state([])
+                                                            ),
+                                                    ]
+                                                ),
 
                                             Toggle::make('override_offline_food_price_text')
                                                 ->live(),

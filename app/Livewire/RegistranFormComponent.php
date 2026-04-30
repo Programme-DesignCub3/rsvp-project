@@ -339,6 +339,12 @@ class RegistranFormComponent extends Component
         return $this->event->detail->offline_foods ?? [];
     }
 
+    #[Computed]
+    public function userShouldUploadInvoice()
+    {
+        return ! in_array($this->type, $this->event->detail->excluded_payment_list ?? []);
+    }
+
     protected function removeSeconds($time)
     {
         return date('h:i', strtotime($time));
@@ -370,21 +376,20 @@ class RegistranFormComponent extends Component
 
         if ($this->isOfflineSelected()) {
 
-            if (count($this->offline_foods)) {
-
-                if ($this->event->detail->show_invoice_upload) {
-                    $this->validate(
-                        [
-                            'payment' => 'image|max:4096',
-                        ],
-                        [
-                            'payment.image' => 'File must be an image',
-                            'payment.max' => 'File size must be less than 4MB',
-                        ],
-                        ['payment' => 'PROOF OF PAYMENT']
-                    );
-                }
+            // if (count($this->offline_foods)) {
+            if ($this->event->detail->show_invoice_upload && $this->userShouldUploadInvoice()) {
+                $this->validate(
+                    [
+                        'payment' => 'image|max:4096',
+                    ],
+                    [
+                        'payment.image' => 'File must be an image',
+                        'payment.max' => 'File size must be less than 4MB',
+                    ],
+                    ['payment' => 'PROOF OF PAYMENT']
+                );
             }
+            // }
 
             $data['is_offline'] = true;
 

@@ -224,70 +224,71 @@
                                                 <span class="error-form-message">{{ $message }}</span>
                                             @enderror
                                         </div>
-
-                                        {{-- KETERANGAN --}}
-                                        @if ($this->event->detail->show_invoice_upload)
-                                            {{-- <p class="font-semibold">Please transfer payment to <br><strong
-                                                    class="text-lg">Fransisca - BCA 0657181513</strong></p> --}}
-
-                                            {{-- <p class="font-semibold">Please transfer payment to <br><strong
-                                                    class="text-lg">BANK JAGO 1005 2218 1069 a/n Fransisca</strong></p> --}}
-
-                                            <p class="font-semibold">Please transfer payment to <br>
-                                                <strong class="text-lg">
-                                                    Bank Jago 101916230906 a/n Stefanny Liezal
-                                                </strong>
-                                            </p>
-
-                                            <div class="rounded-lg bg-gray-200 p-2">
-                                                <p class="mb-2">Sertakan Berita dengan format penulisan:
-                                                    {{-- TODO: CLEAN THIS AFTER EVENT END --}}
-                                                    <strong>“Chapter/Visitor" + “Nama" @if ($this->event->slug == 'fun-bay-networking')
-                                                            + APR22
-                                                        @endif </strong>
-                                                </p>
-                                                <p>Contoh:</p>
-
-                                                @if ($this->event->slug == 'fun-bay-networking')
-                                                    <ul class="list-inside list-disc pl-1 lg:pl-2">
-                                                        <li class="font-semibold">Magnitude Deddy + APR22</li>
-                                                        <li class="font-semibold">Altitude Edo + APR22</li>
-                                                        <li class="font-semibold">Visitor Daniel + APR22</li>
-                                                    </ul>
-                                                @else
-                                                    <ul class="list-inside list-disc pl-1 lg:pl-2">
-                                                        <li class="font-semibold">Magnitude Deddy</li>
-                                                        <li class="font-semibold">Altitude Edo</li>
-                                                        <li class="font-semibold">Visitor Daniel</li>
-                                                    </ul>
-                                                @endif
-                                            </div>
-
-                                            {{-- UPLOAD BUKTI PEMBAYARAN --}}
-                                            <div class="form-group">
-                                                <label class="form-label text-black" for="payment">UPLOAD PROOF OF
-                                                    PAYMENT:</label>
-                                                <input class="w-full border border-black p-2" id="payment"
-                                                    type="file" accept="image/*" wire:model.live='payment'
-                                                    name="payment" />
-                                                @if ($payment)
-                                                    <div class="bg-gray my-3 px-2">
-                                                        <img class="w-full max-w-screen-lg lg:max-w-sm"
-                                                            src="{{ $payment->temporaryUrl() }}" alt="">
-                                                    </div>
-                                                @endif
-                                                {{-- <x-filepond::upload wire:model="payment" required="{{ $this->isOfflineSelected }}" /> --}}
-
-                                                <div>
-                                                    @error('payment')
-                                                        <span class="error-form-message">{{ $message }}</span>
-                                                    @enderror
-                                                </div>
-                                            </div>
-                                        @endif
                                     </div>
                                 </div>
                             @endif
+
+                            {{-- KETERANGAN --}}
+                            {{-- * Invoice Upload Start --}}
+                            @if ($this->event->detail->show_invoice_upload && $this->userShouldUploadInvoice)
+                                {{-- <p class="font-semibold">Please transfer payment to <br><strong
+                                                    class="text-lg">Fransisca - BCA 0657181513</strong></p> --}}
+
+                                {{-- <p class="font-semibold">Please transfer payment to <br><strong
+                                                    class="text-lg">BANK JAGO 1005 2218 1069 a/n Fransisca</strong></p> --}}
+
+                                <p class="font-semibold">Please transfer payment to <br>
+                                    <strong class="text-lg">
+                                        Bank Jago 101916230906 a/n Stefanny Liezal
+                                    </strong>
+                                </p>
+
+                                <div class="rounded-lg bg-gray-200 p-2">
+                                    <p class="mb-2">Sertakan Berita dengan format penulisan:
+                                        {{-- TODO: CLEAN THIS AFTER EVENT END --}}
+                                        <strong>“Chapter/Visitor" + “Nama" @if ($this->event->slug == 'fun-bay-networking')
+                                                + APR22
+                                            @endif </strong>
+                                    </p>
+                                    <p>Contoh:</p>
+
+                                    @if ($this->event->slug == 'fun-bay-networking')
+                                        <ul class="list-inside list-disc pl-1 lg:pl-2">
+                                            <li class="font-semibold">Magnitude Deddy + APR22</li>
+                                            <li class="font-semibold">Altitude Edo + APR22</li>
+                                            <li class="font-semibold">Visitor Daniel + APR22</li>
+                                        </ul>
+                                    @else
+                                        <ul class="list-inside list-disc pl-1 lg:pl-2">
+                                            <li class="font-semibold">Magnitude Deddy</li>
+                                            <li class="font-semibold">Altitude Edo</li>
+                                            <li class="font-semibold">Visitor Daniel</li>
+                                        </ul>
+                                    @endif
+                                </div>
+
+                                {{-- UPLOAD BUKTI PEMBAYARAN --}}
+                                <div class="form-group">
+                                    <label class="form-label text-black" for="payment">UPLOAD PROOF OF
+                                        PAYMENT:</label>
+                                    <input class="w-full border border-black p-2" id="payment" type="file"
+                                        accept="image/*" wire:model.live='payment' name="payment" />
+                                    @if ($payment)
+                                        <div class="bg-gray my-3 px-2">
+                                            <img class="w-full max-w-screen-lg lg:max-w-sm"
+                                                src="{{ $payment->temporaryUrl() }}" alt="">
+                                        </div>
+                                    @endif
+                                    {{-- <x-filepond::upload wire:model="payment" required="{{ $this->isOfflineSelected }}" /> --}}
+
+                                    <div>
+                                        @error('payment')
+                                            <span class="error-form-message">{{ $message }}</span>
+                                        @enderror
+                                    </div>
+                                </div>
+                            @endif
+                            {{-- * Invoice Upload End --}}
                         </div>
                     @endif
 
