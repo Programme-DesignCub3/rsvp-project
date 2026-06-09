@@ -2,50 +2,81 @@
 
 namespace App\Livewire;
 
-use App\Enums\VisitorType;
-use App\Mail\VisitorMail;
+use App\Models\Event;
 use App\Models\Visitor;
-use Illuminate\Support\Facades\Mail;
+use App\Services\VisitorRegistrationService;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
+/**
+ * Custom registration form for the 12 Feb 2026 BNI Golf event.
+ *
+ * Future custom event forms can follow this shape: keep event-specific fields
+ * and validation in the Livewire component, then pass the final Visitor payload
+ * to VisitorRegistrationService for the common create/order/media/email flow.
+ */
 class BniGolf12Feb2026 extends Component
 {
     use WithFileUploads;
 
-    public $isSubmitted = false;
+    private const OFFLINE_SESSION = 'offline';
 
-    public $slug;
+    public bool $isSubmitted = false;
 
-    public $event;
+    public string $slug = '';
 
-    public $visitor;
+    public Event $event;
 
-    public $sessions = ['offline'];
+    public ?Visitor $visitor = null;
 
-    public $name = '';
+    public bool $requiresPaymentProof = false;
 
-    public $phone = null;
+    /**
+     * @var array<int, string>
+     */
+    public array $sessions = [self::OFFLINE_SESSION];
 
-    public $email = null;
+    public ?string $name = '';
 
-    public $handicap = null;
+    public ?string $phone = null;
 
-    public $shirt_size = '';
+    public ?string $email = null;
 
-    public $type = '';
+    public int|string|null $handicap = null;
 
-    public $chapter = '';
+    public ?string $shirt_size = '';
 
-    public $visitor_type = '';
+    public ?string $type = '';
 
-    public $company = '';
+    public ?string $chapter = '';
 
-    public $payment;
+    public ?string $visitor_type = '';
 
-    public function updatedType()
+    public ?string $company = '';
+
+    public mixed $payment = null;
+
+    /**
+     * Initialize the custom form with its event and default offline session.
+     */
+    public function mount(string $slug, Event $event): void
+    {
+        $this->slug = $slug;
+        $this->event = $event->loadMissing('detail');
+        $this->requiresPaymentProof = (bool) ($this->event->detail->show_invoice_upload ?? false);
+
+        if (! $this->event->checkable_one) {
+            $this->sessions = $this->event->session;
+        }
+    }
+
+    /**
+     * Clear conditional fields when the participant switches between BNI and Non-BNI.
+     */
+    public function updatedType(): void
     {
         $this->reset([
             'chapter',
@@ -55,45 +86,43 @@ class BniGolf12Feb2026 extends Component
     }
 
     /**
-     * Updates the visitor type array based on the online and offline sessions selected.
-     *
-     * If both online and offline sessions are selected, all visitor types are available.
-     * If only online sessions are selected, all visitor types are available.
-     * If only offline sessions are selected, only visitor types that are applicable to offline
-     * events are available.
-     * If no sessions are selected, the visitor type array is empty.
-     *
-     * @return void
+     * Clear stale Non-BNI detail fields when personal/company choice changes.
      */
-    public function updatedVisitorType()
+    public function updatedVisitorType(): void
     {
         $this->reset([
             'chapter',
             'company',
         ]);
-
     }
 
-    public function rules()
+    /**
+     * Base validation rules for the golf form.
+     *
+     * @return array<string, mixed>
+     */
+    public function rules(): array
     {
-
-        $rule = [
-            'name' => 'required',
-            'phone' => 'required',
+        return [
+            'name' => ['required'],
+            'phone' => ['required'],
             'handicap' => ['required', 'numeric', 'min:1', 'max:32'],
-            'email' => Rule::unique('visitors')->where(function ($query) {
-                return $query->where('email', $this->email)
-                    ->where('event_id', $this->event->id);
-            }),
+            'email' => [
+                'required',
+                Rule::unique('visitors', 'email')
+                    ->where(fn (Builder $query): Builder => $query->where('event_id', $this->event->id)),
+            ],
             'type' => ['required'],
             'shirt_size' => ['required'],
-
         ];
-
-        return $rule;
     }
 
-    public function messages()
+    /**
+     * Validation copy shown by the custom golf form.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
     {
         return [
             'type.required' => '* mandatory',
@@ -101,143 +130,155 @@ class BniGolf12Feb2026 extends Component
             'company.required' => '* mandatory',
             'phone.required' => '* mandatory',
             'email.required' => '* mandatory',
+            'payment.required' => '* mandatory',
         ];
     }
 
+    /**
+     * Format the event online time without seconds for display.
+     */
     #[Computed]
-    public function online_hour()
+    public function online_hour(): string
     {
         return $this->event->detail->online_time ? $this->removeSeconds($this->event->detail->online_time) : '';
     }
 
+    /**
+     * Format the event offline time without seconds for display.
+     */
     #[Computed]
-    public function offline_hour()
+    public function offline_hour(): string
     {
         return $this->event->detail->offline_time ? $this->removeSeconds($this->event->detail->offline_time) : '';
     }
 
-    protected function removeSeconds($time)
+    /**
+     * Render the custom event registration form.
+     */
+    public function render()
     {
-        return date('h:i', strtotime($time));
+        return view('livewire.bni-golf12-feb2026');
     }
 
-    public function save()
+    /**
+     * Validate event-specific fields and create the visitor through the shared service.
+     */
+    public function save(): void
     {
         $this->validate();
+        $this->validateRegistrationType();
+        $this->validatePaymentProof();
 
-        $data = [
-            'sessions' => $this->sessions,
-            'name' => $this->name,
-            // 'status' => $this->type === VisitorType::MAGNITUDE->value ? $this->status : null,
-            // 'business' => $this->business,
-            // 'company' => $this->company,
-            'phone' => $this->phone,
-            'email' => $this->email,
-            'type' => $this->type,
-            // 'food' => count($this->offline_foods) ?
-            //     (is_array($this->food) ? json_encode($this->food) : $this->food) : null,
-            'event_id' => $this->event->id,
-        ];
+        $this->visitor = app(VisitorRegistrationService::class)->createForEvent(
+            $this->event,
+            $this->visitorData(),
+            $this->payment,
+            $this->requiresPaymentProof
+        );
+
+        $this->isSubmitted = true;
+    }
+
+    /**
+     * Validate BNI-only or Non-BNI-only fields.
+     */
+    protected function validateRegistrationType(): void
+    {
+        if ($this->type === 'bni') {
+            $this->validate(['chapter' => ['required']]);
+
+            return;
+        }
+
+        $this->validate(['visitor_type' => ['required']]);
+
+        if ($this->visitor_type === 'company') {
+            $this->validate(['company' => ['required']]);
+        }
+    }
+
+    /**
+     * Require payment proof only when this event shows invoice upload.
+     */
+    protected function validatePaymentProof(): void
+    {
+        if (! $this->requiresPaymentProof) {
+            return;
+        }
 
         $this->validate(
             [
-                'payment' => 'image|max:4096',
+                'payment' => ['required', 'image', 'max:4096'],
             ],
             [
+                'payment.required' => '* mandatory',
                 'payment.image' => 'File must be an image',
                 'payment.max' => 'File size must be less than 4MB',
             ],
             ['payment' => 'PROOF OF PAYMENT']
         );
+    }
 
-        if ($this->type === 'bni') {
-            $this->validate(
-                [
-                    'chapter' => 'required',
-                ],
-            );
-        } else {
-            $this->validate(
-                [
-                    'visitor_type' => 'required',
-                ],
-            );
-
-            if ($this->visitor_type === 'company') {
-                $this->validate(
-                    [
-                        'company' => 'required',
-                    ],
-                );
-
-                $data['company'] = $this->company;
-            }
-        }
-
-        $data['is_offline'] = true;
-
-        $lastVisitor = Visitor::where('event_id', $this->event->id)
-            ->where('is_offline', true)
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $data['order_id'] = $this->generateOrderId($lastVisitor);
-
-        $metaFields = [
-            'visitor_type',
-            'chapter',
-            'handicap',
-            'shirt_size',
+    /**
+     * Build the Visitor payload for this custom event.
+     *
+     * @return array{
+     *     sessions: array<int, string>,
+     *     name: string|null,
+     *     phone: string|null,
+     *     email: string|null,
+     *     type: string|null,
+     *     invited_by: string,
+     *     company?: string|null,
+     *     is_offline: bool,
+     *     meta?: array<string, mixed>
+     * }
+     */
+    protected function visitorData(): array
+    {
+        $data = [
+            'sessions' => $this->sessions,
+            'name' => $this->name,
+            'phone' => $this->phone,
+            'email' => $this->email,
+            'type' => $this->type,
+            'invited_by' => '',
+            'is_offline' => true,
         ];
 
-        foreach ($metaFields as $field) {
-            if ($this->{$field}) {
-                $data['meta'] = array_merge($data['meta'] ?? [], [$field => $this->{$field}]);
-            }
+        if ($this->visitor_type === 'company') {
+            $data['company'] = $this->company;
         }
 
-        $visitor = Visitor::create($data);
+        $meta = $this->metaData();
 
-        $visitor->addMedia($this->payment->getRealPath())
-            ->preservingOriginal()
-            ->toMediaCollection('payment_proof');
-
-        $this->visitor = $visitor;
-
-        try {
-            // Mail to visitor
-
-            Mail::to($this->email)
-                ->send(new VisitorMail($this->visitor));
-        } catch (\Throwable $th) {
-            // Log error
+        if ($meta !== []) {
+            $data['meta'] = $meta;
         }
 
-        $this->isSubmitted = true;
+        return $data;
     }
 
-    protected function generateOrderId($lastOrderId)
+    /**
+     * Collect event-specific custom fields into visitor meta.
+     *
+     * @return array<string, mixed>
+     */
+    protected function metaData(): array
     {
-        $lastOrderId = $lastOrderId ? $lastOrderId->order_id : '00000';
-        $lastOrderId = (int) $lastOrderId;
-        $lastOrderId++;
-
-        return str_pad($lastOrderId, 5, '0', STR_PAD_LEFT);
+        return array_filter([
+            'visitor_type' => $this->visitor_type,
+            'chapter' => $this->chapter,
+            'handicap' => $this->handicap,
+            'shirt_size' => $this->shirt_size,
+        ], fn (mixed $value): bool => filled($value));
     }
 
-    public function mount($slug, $event)
+    /**
+     * Format a time string as hour and minute.
+     */
+    protected function removeSeconds(string $time): string
     {
-        $this->slug = $slug;
-        $this->event = $event;
-
-        if (! $this->event->checkable_one) {
-            $this->sessions = $event->session;
-        }
-
-    }
-
-    public function render()
-    {
-        return view('livewire.bni-golf12-feb2026');
+        return date('h:i', strtotime($time));
     }
 }

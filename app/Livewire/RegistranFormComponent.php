@@ -2,99 +2,124 @@
 
 namespace App\Livewire;
 
+use App\Enums\FoodType;
 use App\Enums\VisitorStatusType;
 use App\Enums\VisitorType;
-use App\Mail\VisitorMail;
 use App\Models\Event;
 use App\Models\Member;
 use App\Models\Visitor;
-use Illuminate\Support\Facades\Mail;
+use App\Services\VisitorRegistrationService;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Spatie\Image;
 
-/* ****************************************************** */
-/*         LASCIATE OGNE SPERANZA, VOI CH'INTRATE */
-/* ****************************************************** */
-
-/* ******** We Really Should Refactor All Of This ******* */
-
+/**
+ * Handles the default visitor registration flow for BNI event pages.
+ *
+ * The Blade view is intentionally split into partials, while this class owns
+ * the Livewire state, event/session decisions, validation, persistence, media
+ * attachment, and confirmation email workflow.
+ */
 class RegistranFormComponent extends Component
 {
     use WithFileUploads;
 
-    public $isSubmitted = false;
+    private const ONLINE_SESSION = 'online';
 
-    public $slug;
+    private const OFFLINE_SESSION = 'offline';
 
-    public $visitor;
+    /**
+     * @var array<int, string>
+     */
+    private const SELECTABLE_SESSIONS = [
+        self::ONLINE_SESSION,
+        self::OFFLINE_SESSION,
+    ];
 
-    public $sessions = [];
+    public bool $isSubmitted = false;
 
-    public $type = '';
+    public string $slug = '';
 
-    public $name = '';
+    public Event $event;
 
-    public $status = null;
+    public ?Visitor $visitor = null;
 
-    public $business = null;
+    /**
+     * @var array<int, string>
+     */
+    public array $sessions = [];
 
-    public $company = null;
+    public ?string $type = '';
 
-    public $phone = null;
+    public ?string $name = '';
 
-    public $email = null;
+    public ?string $status = null;
 
-    public $invited_by = '';
+    public ?string $business = null;
 
-    public $food = [];
+    public ?string $company = null;
 
-    public $payment;
+    public ?string $phone = null;
 
-    public $visitor_type = [];
+    public ?string $email = null;
 
-    public $invited_by_disabled = false;
+    public ?string $invited_by = '';
 
-    public $substituted_by = null;
+    /**
+     * @var array<string, mixed>
+     */
+    public array $food = [];
 
-    public function updatedType()
+    public mixed $payment = null;
+
+    /**
+     * @var array<int, VisitorType>
+     */
+    public array $visitor_type = [];
+
+    public bool $invited_by_disabled = false;
+
+    public ?string $substituted_by = null;
+
+    /**
+     * Initialize the form with the current event and its default sessions.
+     */
+    public function mount(string $slug, Event $event): void
     {
-        // if (VisitorType::tryFrom($this->type) !== VisitorType::MAGNITUDE) {
-        //     $this->phone = null;
-        //     $this->email = null;
-        // }
+        $this->slug = $slug;
+        $this->event = $event->loadMissing('detail');
 
-        $this->name = null;
-        $this->business = null;
-        $this->company = null;
-        $this->phone = null;
-        $this->email = null;
-        $this->invited_by = null;
-        $this->status = null;
-
-        $this->invited_by_disabled = ! in_array($this->type, [VisitorType::VISITOR->value, VisitorType::GUEST->value], true);
-
-        if ($this->invited_by_disabled) {
-            $this->reset(['invited_by']);
+        if (! $this->event->checkable_one) {
+            $this->sessions = $this->event->session;
         }
+
+        $this->updateVisitorType();
     }
 
-    public function updatingSessions($value, $key)
+    /**
+     * Reset visitor identity fields when the selected registration type changes.
+     */
+    public function updatedType(): void
     {
-        // if ($this->event->checkable_one) {
-
-        // }
-
-        // $this->updateVisitorType();
-
-        $this->reset('status');
-        $this->reset('substituted_by');
-        // $this->status = '';
+        $this->resetVisitorIdentityFields();
+        $this->syncInvitedByAvailability();
     }
 
-    public function updatingStatus($value)
+    /**
+     * Clear attendance status when sessions are updated from checkbox bindings.
+     */
+    public function updatingSessions(mixed $value, mixed $key): void
+    {
+        $this->resetAttendanceStatus();
+    }
+
+    /**
+     * Clear substitute details whenever the selected status is no longer substitute.
+     */
+    public function updatingStatus(mixed $value): void
     {
         if ($value !== VisitorStatusType::SUBSTITUTE->value) {
             $this->reset('substituted_by');
@@ -102,151 +127,95 @@ class RegistranFormComponent extends Component
     }
 
     /**
-     * Updates the visitor type array based on the online and offline sessions selected.
-     *
-     * If both online and offline sessions are selected, all visitor types are available.
-     * If only online sessions are selected, all visitor types are available.
-     * If only offline sessions are selected, only visitor types that are applicable to offline
-     * events are available.
-     * If no sessions are selected, the visitor type array is empty.
-     *
-     * @return void
+     * Refresh available visitor types according to selected session and event overrides.
      */
-    public function updateVisitorType()
+    public function updateVisitorType(): void
     {
-
-        if ($this->event->detail->override_offline_visitor_type) {
-            $offlineVisitorTypes = [];
-
-            foreach ($this->event->detail->offline_visitor_type_list as $visitor_type) {
-
-                $enumVisitor = VisitorType::tryFrom($visitor_type);
-
-                if ($enumVisitor !== null) {
-                    $offlineVisitorTypes[] = $enumVisitor;
-                }
-            }
-        } else {
-            $offlineVisitorTypes = [
-                \App\Enums\VisitorType::VISITOR,
-                \App\Enums\VisitorType::MAGNITUDE,
-                \App\Enums\VisitorType::ALTITUDE,
-            ];
-        }
-
-        if ($this->event->detail->override_online_visitor_type) {
-            $onlineVisitorTypes = [];
-
-            foreach ($this->event->detail->online_visitor_type_list as $visitor_type) {
-
-                $enumVisitor = VisitorType::tryFrom($visitor_type);
-
-                if ($enumVisitor !== null) {
-                    $onlineVisitorTypes[] = $enumVisitor;
-                }
-            }
-        } else {
-            $onlineVisitorTypes = \App\Enums\VisitorType::cases();
-        }
+        $offlineVisitorTypes = $this->visitorTypesForSession(self::OFFLINE_SESSION);
+        $onlineVisitorTypes = $this->visitorTypesForSession(self::ONLINE_SESSION);
 
         if ($this->event->checkable_one) {
-            $this->visitor_type = array_unique(array_merge($onlineVisitorTypes, $offlineVisitorTypes), SORT_REGULAR);
+            $this->visitor_type = $this->uniqueVisitorTypes([...$onlineVisitorTypes, ...$offlineVisitorTypes]);
 
             return;
-        } else {
-            if ($this->isOfflineSelected() && $this->isOnlineSelected()) {
-                $this->visitor_type = array_unique(array_merge($onlineVisitorTypes, $offlineVisitorTypes), SORT_REGULAR);
-            } elseif ($this->isOnlineSelected()) {
-                $this->visitor_type = $onlineVisitorTypes;
-            } elseif ($this->isOfflineSelected()) {
-                $this->visitor_type = $offlineVisitorTypes;
-            } else {
-                $this->visitor_type = [];
-            }
         }
 
-        if (! in_array(VisitorType::tryFrom($this->type), $this->visitor_type)) {
+        $this->visitor_type = match (true) {
+            $this->isOfflineSelected() && $this->isOnlineSelected() => $this->uniqueVisitorTypes([...$onlineVisitorTypes, ...$offlineVisitorTypes]),
+            $this->isOnlineSelected() => $onlineVisitorTypes,
+            $this->isOfflineSelected() => $offlineVisitorTypes,
+            default => [],
+        };
+
+        if (! in_array($this->selectedVisitorType(), $this->visitor_type, true)) {
             $this->type = '';
         }
     }
 
-    public function handleFoodChange($food)
+    /**
+     * Toggle a buffet food value in the selected food array.
+     */
+    public function handleFoodChange(string $food): void
     {
-        if (! in_array($food, $this->food)) {
+        if (! in_array($food, $this->food, true)) {
             $this->food = array_merge($this->food, [$food]);
-        } else {
-            $this->food = array_diff($this->food, [$food]);
-        }
-    }
 
-    public function handleSessionChange($session)
-    {
-        if (! in_array($session, ['offline', 'online'])) {
             return;
         }
 
-        if (in_array($session, $this->sessions)) {
-            $this->sessions = [];
-        } else {
-            $this->sessions = [$session];
-        }
-
-        $this->reset('status');
-
-        $this->updateVisitorType();
-
+        $this->food = array_values(array_diff($this->food, [$food]));
     }
 
-    public function rules()
+    /**
+     * Toggle the single allowed session for events configured as checkable-one.
+     */
+    public function handleSessionChange(string $session): void
     {
-        // TODO: CLEAN UP AND MAKE BASE RULES
-        if ($this->isVisitorTypeMagnitude()) {
-            $rule = [
-                'name' => 'required',
-                // "sessions" => "required",
-                // "status" => $this->event->is_offline_event_only ? '' : "required",
-                'email' => Rule::unique('visitors')->where(function ($query) {
-                    return $query->where('email', $this->email)
-                        ->where('event_id', $this->event->id);
-                }),
-            ];
-        } else {
-            $rule = [
-                'name' => 'required',
-                // "sessions" => "required",
-                // "status" => "required",
-                'business' => 'required',
-                'company' => 'required',
-                'phone' => 'required',
-                'email' => Rule::unique('visitors')->where(function ($query) {
-                    return $query->where('email', $this->email)
-                        ->where('event_id', $this->event->id);
-                }),
-                'invited_by' => 'sometimes',
-                'type' => ['required', Rule::enum(VisitorType::class)],
-                // "food" =>  [
-                //     Rule::requiredIf(function () {
-                //         return in_array('offline', $this->sessions);
-                //     })
-                // ],
-                // "payment" => [
-                //     'mimetypes:image/jpg,image/jpeg,image/png',
-                //     'max:3000',
-                //     Rule::requiredIf(function () {
-                //         return in_array('offline', $this->sessions);
-                //     })
-                // ],
-            ];
+        if (! in_array($session, self::SELECTABLE_SESSIONS, true)) {
+            return;
         }
 
-        // if ($this->event->detail->food_type === \App\Enums\FoodType::FIXED) {
-        //     $rule['food'] = ['required', 'array'];
-        // }
+        $this->sessions = in_array($session, $this->sessions, true) ? [] : [$session];
 
-        return $rule;
+        $this->resetAttendanceStatus();
+        $this->updateVisitorType();
     }
 
-    public function messages()
+    /**
+     * Build the base validation rules for member and non-member registration types.
+     *
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        $rules = [
+            'name' => ['required'],
+            'email' => [
+                Rule::unique('visitors', 'email')
+                    ->where(fn (Builder $query): Builder => $query->where('event_id', $this->event->id)),
+            ],
+        ];
+
+        if ($this->isVisitorTypeMagnitude()) {
+            return $rules;
+        }
+
+        return [
+            ...$rules,
+            'business' => ['required'],
+            'company' => ['required'],
+            'phone' => ['required'],
+            'invited_by' => ['sometimes'],
+            'type' => ['required', Rule::enum(VisitorType::class)],
+        ];
+    }
+
+    /**
+     * Return short validation copy used by the registration form.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
     {
         return [
             'type.required' => '* mandatory',
@@ -263,232 +232,490 @@ class RegistranFormComponent extends Component
         ];
     }
 
+    /**
+     * Return status choices based on whether the visitor selected an online session.
+     *
+     * @return array<int, VisitorStatusType>
+     */
     #[Computed]
-    public function getStatusType()
+    public function getStatusType(): array
     {
-        $statusTypeList = [];
-
         if ($this->isOnlineSelected()) {
-            $statusTypeList = [
+            return [
                 VisitorStatusType::HADIR,
-                // VisitorStatusType::HADIR_TIDAK_PRESENTASI,
-            ];
-        } else {
-            $statusTypeList = [
-                VisitorStatusType::SAKIT,
-                VisitorStatusType::SUBSTITUTE,
             ];
         }
 
-        return $statusTypeList;
+        return [
+            VisitorStatusType::SAKIT,
+            VisitorStatusType::SUBSTITUTE,
+        ];
     }
 
+    /**
+     * Determine whether the current registration type is an existing Magnitude member.
+     */
     #[Computed]
-    public function isVisitorTypeMagnitude()
+    public function isVisitorTypeMagnitude(): bool
     {
-        return $this->type === \App\Enums\VisitorType::MAGNITUDE->value;
+        return $this->type === VisitorType::MAGNITUDE->value;
     }
 
+    /**
+     * Load visible members for the searchable Magnitude member dropdown.
+     */
     #[Computed]
-    public function allMember()
+    public function allMember(): ?Collection
     {
         return $this->isVisitorTypeMagnitude() ? Member::where('hide', false)->orderBy('name')->get() : null;
     }
 
+    /**
+     * Determine whether the offline session is selected.
+     */
     #[Computed]
-    public function isOfflineSelected()
+    public function isOfflineSelected(): bool
     {
-        return in_array('offline', $this->sessions ?? []);
+        return in_array(self::OFFLINE_SESSION, $this->sessions ?? [], true);
     }
 
+    /**
+     * Determine whether the online session is selected.
+     */
     #[Computed]
-    public function isOnlineSelected()
+    public function isOnlineSelected(): bool
     {
-        return in_array('online', $this->sessions ?? []);
+        return in_array(self::ONLINE_SESSION, $this->sessions ?? [], true);
     }
 
+    /**
+     * Determine whether no attendance session has been selected.
+     */
     #[Computed]
     public function isEmptySessions(): bool
     {
         return ! $this->isOfflineSelected() && ! $this->isOnlineSelected();
     }
 
+    /**
+     * Format the event online time without seconds for display.
+     */
     #[Computed]
-    public function event()
-    {
-        return Event::slug($this->slug)
-            ->with('detail')
-            ->first();
-    }
-
-    #[Computed]
-    public function online_hour()
+    public function online_hour(): string
     {
         return $this->event->detail->online_time ? $this->removeSeconds($this->event->detail->online_time) : '';
     }
 
+    /**
+     * Format the event offline time without seconds for display.
+     */
     #[Computed]
-    public function offline_hour()
+    public function offline_hour(): string
     {
         return $this->event->detail->offline_time ? $this->removeSeconds($this->event->detail->offline_time) : '';
     }
 
+    /**
+     * Return configured offline food options from the event detail.
+     *
+     * @return array<int, array<string, mixed>>
+     */
     #[Computed]
-    public function offline_foods()
+    public function offline_foods(): array
     {
         return $this->event->detail->offline_foods ?? [];
     }
 
+    /**
+     * Determine whether this visitor type is required to upload payment proof.
+     */
     #[Computed]
-    public function userShouldUploadInvoice()
+    public function userShouldUploadInvoice(): bool
     {
-        return ! in_array($this->type, $this->event->detail->excluded_payment_list ?? []);
+        return ! in_array($this->type, $this->event->detail->excluded_payment_list ?? [], true);
     }
 
-    protected function removeSeconds($time)
+    /**
+     * Return the fixed food package that matches the selected registration type.
+     *
+     * @return array<string, mixed>|null
+     */
+    #[Computed]
+    public function selectedFixedMenu(): ?array
     {
-        return date('h:i', strtotime($time));
-    }
-
-    public function render()
-    {
-        return view('livewire.registran-form-component');
-    }
-
-    public function save()
-    {
-        $validated = $this->validate();
-
-        $data = [
-            'sessions' => $this->sessions,
-            'type' => $this->type,
-            'name' => $this->name,
-            'status' => $this->type === VisitorType::MAGNITUDE->value ? $this->status : null,
-            'business' => $this->business,
-            'company' => $this->company,
-            'phone' => $this->phone,
-            'email' => $this->email,
-            'invited_by' => $this->invited_by ?? null,
-            'food' => count($this->offline_foods) ?
-                (is_array($this->food) ? json_encode($this->food) : $this->food) : null,
-            'event_id' => $this->event->id,
-        ];
-
-        if ($this->isOfflineSelected()) {
-
-            // if (count($this->offline_foods)) {
-            if ($this->event->detail->show_invoice_upload && $this->userShouldUploadInvoice()) {
-                $this->validate(
-                    [
-                        'payment' => 'image|max:4096',
-                    ],
-                    [
-                        'payment.image' => 'File must be an image',
-                        'payment.max' => 'File size must be less than 4MB',
-                    ],
-                    ['payment' => 'PROOF OF PAYMENT']
-                );
-            }
-            // }
-
-            $data['is_offline'] = true;
-
-            $lastVisitor = Visitor::where('event_id', $this->event->id)
-                ->where('is_offline', true)
-                ->orderBy('id', 'desc')
-                ->first();
-
-            $data['order_id'] = $this->generateOrderId($lastVisitor);
-        } else {
-            $data['food'] = null;
-            // dd($data['food']);
+        if ($this->event->detail->food_type !== FoodType::FIXED || blank($this->type)) {
+            return null;
         }
 
-        if ($this->isOnlineSelected()) {
-            $data['is_online'] = true;
-        }
-
-        if ($this->event->detail->food_required && $this->isOfflineSelected()) {
-            $this->validate(
-                ['food' => 'required'],
-                ['food.required' => '* mandatory'],
-                ['food' => 'FOOD']
-            );
-        }
-
-        if ($this->isVisitorTypeMagnitude() && $this->status === VisitorStatusType::SUBSTITUTE->value) {
-            $data['meta'] = array_merge($data['meta'] ?? [], ['substituted_by' => $this->substituted_by]);
-        }
-
-        $visitor = Visitor::create($data);
-
-        if ($this->isOfflineSelected() && count($this->offline_foods) && $this->event->detail->show_invoice_upload) {
-            $visitor->addMedia($this->payment->getRealPath())
-                ->preservingOriginal()
-                ->toMediaCollection('payment_proof');
-        }
-
-        $this->visitor = $visitor;
-
-        try {
-            // Mail to visitor
-
-            Mail::to($this->email)
-                ->send(new VisitorMail($this->visitor));
-        } catch (\Throwable $th) {
-            // Log error
-        }
-
-        $this->isSubmitted = true;
-    }
-
-    protected function generateOrderId($lastOrderId)
-    {
-        $lastOrderId = $lastOrderId ? $lastOrderId->order_id : '00000';
-        $lastOrderId = (int) $lastOrderId;
-        $lastOrderId++;
-
-        return str_pad($lastOrderId, 5, '0', STR_PAD_LEFT);
-    }
-
-    public function searchFixedMenu($target, $array, $prop_key)
-    {
-        foreach ($array as $item) {
-            if ($item[$prop_key] === $target) {
-                if (! empty($item['food'])) {
-                    $this->food['food'] = $item['food'];
-                }
-
-                if (! empty($item['drink'])) {
-                    $this->food['drink'] = $item['drink'];
-                }
-
-                if (! empty($item['price'])) {
-                    $this->food['price'] = $item['price'];
-                }
-
-                if (! empty($item['custom'])) {
-                    $this->food['custom'] = $item['custom'];
-                }
-
+        foreach ($this->offline_foods as $item) {
+            if (($item['visitor_type'] ?? null) === $this->type) {
                 return $item;
-            } else {
-                $this->reset('food');
             }
         }
 
         return null;
     }
 
-    public function mount($slug, $event)
+    /**
+     * Return the package price shown near payment proof upload.
+     */
+    #[Computed]
+    public function paymentAmountLabel(): ?string
     {
-        $this->slug = $slug;
-        $this->event = $event;
+        $selectedFixedMenu = $this->selectedFixedMenu();
 
-        if (! $this->event->checkable_one) {
-            $this->sessions = $event->session;
+        return $this->formatPaymentAmount($selectedFixedMenu['price'] ?? null);
+    }
+
+    /**
+     * Return the selected registration type label for payment copy.
+     */
+    #[Computed]
+    public function selectedVisitorTypeLabel(): ?string
+    {
+        return $this->selectedVisitorType()?->getLabel();
+    }
+
+    /**
+     * Render the registration form view.
+     */
+    public function render()
+    {
+        return view('livewire.registran-form-component');
+    }
+
+    /**
+     * Validate and persist the registration, then attach payment proof and email the visitor.
+     */
+    public function save(): void
+    {
+        $this->validate();
+        $this->validateOfflineRequirements();
+
+        $this->visitor = app(VisitorRegistrationService::class)->createForEvent(
+            $this->event,
+            $this->visitorData(),
+            $this->payment,
+            $this->shouldStorePaymentProof()
+        );
+        $this->isSubmitted = true;
+    }
+
+    /**
+     * Clear personal fields that depend on the selected registration type.
+     */
+    protected function resetVisitorIdentityFields(): void
+    {
+        $this->reset([
+            'name',
+            'business',
+            'company',
+            'phone',
+            'email',
+            'invited_by',
+            'status',
+        ]);
+    }
+
+    /**
+     * Disable invited-by input for visitor types that should not provide host details.
+     */
+    protected function syncInvitedByAvailability(): void
+    {
+        $this->invited_by_disabled = ! in_array(
+            $this->type,
+            [VisitorType::VISITOR->value, VisitorType::GUEST->value],
+            true
+        );
+
+        if ($this->invited_by_disabled) {
+            $this->reset('invited_by');
+        }
+    }
+
+    /**
+     * Clear status fields that become stale when session choice changes.
+     */
+    protected function resetAttendanceStatus(): void
+    {
+        $this->reset(['status', 'substituted_by']);
+    }
+
+    /**
+     * Resolve the visitor types available for a session, honoring event overrides.
+     *
+     * @return array<int, VisitorType>
+     */
+    protected function visitorTypesForSession(string $session): array
+    {
+        if ($session === self::OFFLINE_SESSION) {
+            return $this->event->detail->override_offline_visitor_type
+                ? $this->visitorTypesFromValues($this->event->detail->offline_visitor_type_list ?? [])
+                : $this->defaultOfflineVisitorTypes();
         }
 
-        $this->updateVisitorType();
+        if ($session === self::ONLINE_SESSION) {
+            return $this->event->detail->override_online_visitor_type
+                ? $this->visitorTypesFromValues($this->event->detail->online_visitor_type_list ?? [])
+                : VisitorType::cases();
+        }
+
+        return [];
+    }
+
+    /**
+     * Convert stored visitor type string values into enum cases.
+     *
+     * @param  array<int, string>  $values
+     * @return array<int, VisitorType>
+     */
+    protected function visitorTypesFromValues(array $values): array
+    {
+        $visitorTypes = [];
+
+        foreach ($values as $value) {
+            $visitorType = VisitorType::tryFrom($value);
+
+            if ($visitorType !== null) {
+                $visitorTypes[] = $visitorType;
+            }
+        }
+
+        return $visitorTypes;
+    }
+
+    /**
+     * Return the default offline visitor types when no event override is configured.
+     *
+     * @return array<int, VisitorType>
+     */
+    protected function defaultOfflineVisitorTypes(): array
+    {
+        return [
+            VisitorType::VISITOR,
+            VisitorType::MAGNITUDE,
+            VisitorType::ALTITUDE,
+        ];
+    }
+
+    /**
+     * Remove duplicate visitor type enum cases while preserving insertion order.
+     *
+     * @param  array<int, VisitorType>  $visitorTypes
+     * @return array<int, VisitorType>
+     */
+    protected function uniqueVisitorTypes(array $visitorTypes): array
+    {
+        $uniqueVisitorTypes = [];
+
+        foreach ($visitorTypes as $visitorType) {
+            $uniqueVisitorTypes[$visitorType->value] = $visitorType;
+        }
+
+        return array_values($uniqueVisitorTypes);
+    }
+
+    /**
+     * Convert the currently selected registration type value into a VisitorType enum.
+     */
+    protected function selectedVisitorType(): ?VisitorType
+    {
+        return is_string($this->type) ? VisitorType::tryFrom($this->type) : null;
+    }
+
+    /**
+     * Run validations that only apply to offline registrations.
+     */
+    protected function validateOfflineRequirements(): void
+    {
+        if (! $this->isOfflineSelected()) {
+            return;
+        }
+
+        if ($this->event->detail->show_invoice_upload && $this->userShouldUploadInvoice()) {
+            $this->validatePaymentProof();
+        }
+
+        if ($this->event->detail->food_required) {
+            $this->validateFoodSelection();
+        }
+    }
+
+    /**
+     * Validate uploaded payment proof before passing it to the media library.
+     */
+    protected function validatePaymentProof(): void
+    {
+        $this->validate(
+            [
+                'payment' => ['required', 'image', 'max:4096'],
+            ],
+            [
+                'payment.required' => '* mandatory',
+                'payment.image' => 'File must be an image',
+                'payment.max' => 'File size must be less than 4MB',
+            ],
+            ['payment' => 'PROOF OF PAYMENT']
+        );
+    }
+
+    /**
+     * Validate food selection when the event requires an offline meal choice.
+     */
+    protected function validateFoodSelection(): void
+    {
+        $this->validate(
+            ['food' => ['required']],
+            ['food.required' => '* mandatory'],
+            ['food' => 'FOOD']
+        );
+    }
+
+    /**
+     * Build the payload used to create the Visitor record.
+     *
+     * @return array{
+     *     sessions: array<int, string>,
+     *     type: string|null,
+     *     name: string|null,
+     *     status: string|null,
+     *     business: string|null,
+     *     company: string|null,
+     *     phone: string|null,
+     *     email: string|null,
+     *     invited_by: string|null,
+     *     food: string|null,
+     *     event_id: int,
+     *     is_offline?: bool,
+     *     is_online?: bool,
+     *     meta?: array<string, mixed>
+     * }
+     */
+    protected function visitorData(): array
+    {
+        $data = [
+            'sessions' => $this->sessions,
+            'type' => $this->type,
+            'name' => $this->name,
+            'status' => $this->isVisitorTypeMagnitude() ? $this->status : null,
+            'business' => $this->business,
+            'company' => $this->company,
+            'phone' => $this->phone,
+            'email' => $this->email,
+            'invited_by' => $this->invited_by ?: null,
+            'food' => $this->serializedFood(),
+            'event_id' => $this->event->id,
+        ];
+
+        if ($this->isOfflineSelected()) {
+            $data['is_offline'] = true;
+        }
+
+        if ($this->isOnlineSelected()) {
+            $data['is_online'] = true;
+        }
+
+        if ($this->isSubstituteResponse()) {
+            $data['meta'] = ['substituted_by' => $this->substituted_by];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Serialize food selection for storage only when an offline food menu exists.
+     */
+    protected function serializedFood(): ?string
+    {
+        if (! $this->isOfflineSelected() || count($this->offline_foods) === 0) {
+            return null;
+        }
+
+        if ($this->event->detail->food_type === FoodType::FIXED) {
+            $selectedFixedMenu = $this->selectedFixedMenu();
+
+            return $selectedFixedMenu ? json_encode($selectedFixedMenu) : null;
+        }
+
+        return json_encode($this->food);
+    }
+
+    /**
+     * Determine whether a Magnitude member submitted a substitute response.
+     */
+    protected function isSubstituteResponse(): bool
+    {
+        return $this->isVisitorTypeMagnitude()
+            && $this->status === VisitorStatusType::SUBSTITUTE->value;
+    }
+
+    /**
+     * Determine whether the current registration should persist a payment proof file.
+     */
+    protected function shouldStorePaymentProof(): bool
+    {
+        return $this->payment !== null
+            && $this->isOfflineSelected()
+            && count($this->offline_foods) > 0
+            && $this->event->detail->show_invoice_upload;
+    }
+
+    /**
+     * Find the fixed menu for the selected visitor type and sync it into form state.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<string, mixed>|null
+     */
+    public function searchFixedMenu(?string $target, array $items, string $prop_key): ?array
+    {
+        foreach ($items as $item) {
+            if (($item[$prop_key] ?? null) === $target) {
+                $this->syncFixedFoodSelection($item);
+
+                return $item;
+            }
+        }
+
+        $this->reset('food');
+
+        return null;
+    }
+
+    /**
+     * Copy supported fixed-menu values into the food form state.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    protected function syncFixedFoodSelection(array $item): void
+    {
+        foreach (['food', 'drink', 'price', 'custom'] as $key) {
+            if (! empty($item[$key])) {
+                $this->food[$key] = $item[$key];
+            }
+        }
+    }
+
+    /**
+     * Format a configured payment amount for display, preserving non-numeric labels.
+     */
+    protected function formatPaymentAmount(mixed $amount): ?string
+    {
+        if (blank($amount)) {
+            return null;
+        }
+
+        if (is_numeric($amount)) {
+            return 'IDR '.number_format((float) $amount, 0, ',', '.');
+        }
+
+        return (string) $amount;
+    }
+
+    /**
+     * Format a time string as hour and minute.
+     */
+    protected function removeSeconds(string $time): string
+    {
+        return date('h:i', strtotime($time));
     }
 }
