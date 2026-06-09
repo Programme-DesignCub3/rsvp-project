@@ -5,14 +5,35 @@
 </p>
 
 @if ($this->paymentAmountLabel)
-    <div class="rounded-lg border border-bni-gold-dark bg-bni-gold px-4 py-3">
-        <p class="text-sm font-semibold uppercase text-black">Total payment</p>
-        <p class="text-2xl font-extrabold text-black">{{ $this->paymentAmountLabel }}</p>
-        @if ($this->selectedVisitorTypeLabel)
-            <p class="text-sm font-semibold text-black">
-                Package for {{ $this->selectedVisitorTypeLabel }}
-            </p>
-        @endif
+    <div class="rounded-lg border border-bni-gold-dark bg-bni-gold p-4 text-black">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <p class="text-sm font-semibold uppercase">Payment detail</p>
+                @if ($this->paymentSummaryLabel)
+                    <p class="text-sm font-semibold">Package for {{ $this->paymentSummaryLabel }}</p>
+                @endif
+            </div>
+            <p class="whitespace-nowrap text-lg font-extrabold">{{ $this->paymentAmountLabel }}</p>
+        </div>
+
+        <div class="mt-3 space-y-2 border-t border-black/20 pt-3">
+            @foreach ($this->paymentBreakdown as $paymentItem)
+                <div class="flex items-start justify-between gap-3 text-sm" wire:key="payment-item-{{ $loop->index }}">
+                    <div>
+                        <p class="font-bold">{{ $paymentItem['label'] }}</p>
+                        @if ($paymentItem['description'])
+                            <p class="text-xs font-semibold">{{ $paymentItem['description'] }}</p>
+                        @endif
+                    </div>
+                    <p class="whitespace-nowrap font-extrabold">{{ $paymentItem['amount_label'] }}</p>
+                </div>
+            @endforeach
+        </div>
+
+        <div class="mt-3 flex items-center justify-between gap-3 border-t border-black/20 pt-3">
+            <p class="text-sm font-extrabold uppercase">Total payment</p>
+            <p class="whitespace-nowrap text-2xl font-extrabold">{{ $this->paymentAmountLabel }}</p>
+        </div>
     </div>
 @endif
 

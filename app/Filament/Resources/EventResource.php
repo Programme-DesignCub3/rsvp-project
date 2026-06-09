@@ -26,6 +26,7 @@ use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Resources\Resource;
+use Filament\Support\RawJs;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -244,6 +245,8 @@ class EventResource extends Resource
                     ->hidden(fn (Get $get): bool => ! $get('show_invoice_upload'))
                     ->hintActions(self::visitorTypeBulkActions()),
 
+                self::registrationPaymentPricesRepeater(),
+
                 Toggle::make('override_offline_food_price_text')
                     ->live(),
 
@@ -256,8 +259,13 @@ class EventResource extends Resource
                     ->label(__('Offline Food Price'))
                     ->hidden(fn (Get $get): bool => $get('override_offline_food_price_text'))
                     ->required(fn (Get $get): bool => ! $get('override_offline_food_price_text'))
-                    ->numeric()
-                    ->prefix('Rp')
+                    ->mask(self::idrMoneyMask())
+                    ->inputMode('numeric')
+                    ->extraInputAttributes(self::idrInputAttributes(), true)
+                    ->stripCharacters('.')
+                    ->dehydrateStateUsing(fn (mixed $state): ?string => self::normalizeIdrAmount($state))
+                    ->formatStateUsing(fn (mixed $state): ?string => self::formatIdrAmountForAdmin($state))
+                    ->prefix('IDR')
                     ->columnSpanFull(),
 
                 Toggle::make('food_required')
@@ -281,6 +289,31 @@ class EventResource extends Resource
             ->maxItems(fn (Get $get): int => self::maxFoodItems($get))
             ->collapsible()
             ->schema(fn (Get $get): array => self::foodItemSchema($get));
+    }
+
+    protected static function registrationPaymentPricesRepeater(): Repeater
+    {
+        return Repeater::make('registration_payment_prices')
+            ->label(__('Registration Payment Prices'))
+            ->helperText('Optional registration fee list shown before payment proof upload. Food prices are configured separately in Foods Items.')
+            ->hidden(fn (Get $get): bool => ! $get('show_invoice_upload'))
+            ->collapsible()
+            ->columns(2)
+            ->schema([
+                Select::make('visitor_type')
+                    ->label(__('Visitor Type'))
+                    ->options(VisitorType::class)
+                    ->required(),
+
+                self::idrPriceInput('price', __('Registration Price'))
+                    ->helperText('Use numbers for IDR formatting, e.g. 150000.')
+                    ->required(),
+
+                TextInput::make('label')
+                    ->label(__('Display Label'))
+                    ->helperText('Optional label shown under the total payment, e.g. MAGNITUDE package.')
+                    ->columnSpanFull(),
+            ]);
     }
 
     /**
@@ -314,15 +347,14 @@ class EventResource extends Resource
             FoodType::FIXED => [
                 Select::make('visitor_type')
                     ->options(VisitorType::class)
-                    ->helperText('This visitor type controls which package and price appear on the registration payment section.')
+                    ->helperText('Controls which fixed food package is stored for each visitor type.')
                     ->required(),
                 TextInput::make('food')
                     ->label(__('Food')),
                 TextInput::make('drink')
                     ->label(__('Drinks')),
-                TextInput::make('price')
-                    ->label(__('Payment Price'))
-                    ->helperText('Shown to registrants before they upload payment proof. Use numbers for IDR formatting, e.g. 150000.'),
+                self::idrPriceInput('price', __('Food Price'))
+                    ->helperText('Shown as a separate food cost line in the payment detail.'),
                 TextInput::make('custom')
                     ->label(__('Custom field')),
             ],
@@ -420,6 +452,61 @@ class EventResource extends Resource
                     fn () => $component->state([])
                 ),
         ];
+    }
+
+    protected static function idrPriceInput(string $name, string $label): TextInput
+    {
+        return TextInput::make($name)
+            ->label($label)
+            ->mask(self::idrMoneyMask())
+            ->inputMode('numeric')
+            ->extraInputAttributes(self::idrInputAttributes(), true)
+            ->stripCharacters('.')
+            ->dehydrateStateUsing(fn (mixed $state): ?string => self::normalizeIdrAmount($state))
+            ->formatStateUsing(fn (mixed $state): ?string => self::formatIdrAmountForAdmin($state))
+            ->prefix('IDR');
+    }
+
+    protected static function idrMoneyMask(): RawJs
+    {
+        return RawJs::make('$money($input, ",", ".", 0)');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected static function idrInputAttributes(): array
+    {
+        return [
+            'x-on:keydown' => 'if ([".", ",", "e", "E", "+", "-"].includes($event.key)) $event.preventDefault()',
+            'x-on:input' => <<<'JS'
+                const digits = $event.target.value.replace(/\D/g, '');
+                $event.target.value = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            JS,
+            'x-on:paste' => <<<'JS'
+                $event.preventDefault();
+                const pastedDigits = ($event.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+                document.execCommand('insertText', false, pastedDigits);
+            JS,
+        ];
+    }
+
+    protected static function normalizeIdrAmount(mixed $state): ?string
+    {
+        if (blank($state)) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D/', '', (string) $state);
+
+        return $digits === '' ? null : $digits;
+    }
+
+    protected static function formatIdrAmountForAdmin(mixed $state): ?string
+    {
+        $amount = self::normalizeIdrAmount($state);
+
+        return $amount === null ? null : number_format((int) $amount, 0, ',', '.');
     }
 
     protected static function maxFoodItems(Get $get): int

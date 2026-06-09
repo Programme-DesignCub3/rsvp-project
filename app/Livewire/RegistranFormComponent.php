@@ -357,14 +357,134 @@ class RegistranFormComponent extends Component
     }
 
     /**
+     * Return the payment price configured for the selected registration type.
+     *
+     * @return array<string, mixed>|null
+     */
+    #[Computed]
+    public function selectedRegistrationPaymentPrice(): ?array
+    {
+        if (blank($this->type)) {
+            return null;
+        }
+
+        foreach ($this->event->detail->registration_payment_prices ?? [] as $paymentPrice) {
+            if (($paymentPrice['visitor_type'] ?? null) === $this->type) {
+                return $paymentPrice;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Return the package price shown near payment proof upload.
      */
     #[Computed]
     public function paymentAmountLabel(): ?string
     {
+        return $this->formatPaymentAmount($this->paymentTotalAmount());
+    }
+
+    /**
+     * Return detailed payment rows used by the proof upload summary.
+     *
+     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string}>
+     */
+    #[Computed]
+    public function paymentBreakdown(): array
+    {
+        $selectedPaymentPrice = $this->selectedRegistrationPaymentPrice();
+        $selectedFixedMenu = $this->selectedFixedMenu();
+        $paymentBreakdown = [];
+
+        if ($selectedPaymentPrice !== null) {
+            $paymentBreakdown = [
+                ...$paymentBreakdown,
+                ...$this->paymentBreakdownLine(
+                    'Registration fee',
+                    $this->paymentPackageLabel(),
+                    $selectedPaymentPrice['price'] ?? null
+                ),
+            ];
+        }
+
+        if ($selectedFixedMenu !== null) {
+            $paymentBreakdown = [
+                ...$paymentBreakdown,
+                ...$this->paymentBreakdownLine(
+                    'Food package',
+                    $this->fixedFoodPackageLabel(),
+                    $selectedFixedMenu['price'] ?? null
+                ),
+            ];
+        }
+
+        return $paymentBreakdown;
+    }
+
+    /**
+     * Return the selected fixed food package label for payment detail.
+     */
+    #[Computed]
+    public function fixedFoodPackageLabel(): ?string
+    {
         $selectedFixedMenu = $this->selectedFixedMenu();
 
-        return $this->formatPaymentAmount($selectedFixedMenu['price'] ?? null);
+        if ($selectedFixedMenu === null) {
+            return null;
+        }
+
+        foreach (['food', 'drink', 'custom'] as $key) {
+            if (filled($selectedFixedMenu[$key] ?? null)) {
+                return (string) $selectedFixedMenu[$key];
+            }
+        }
+
+        return $this->paymentPackageLabel();
+    }
+
+    /**
+     * Return the label shown near the payment summary header.
+     */
+    #[Computed]
+    public function paymentSummaryLabel(): ?string
+    {
+        if ($this->selectedRegistrationPaymentPrice() !== null) {
+            return $this->paymentPackageLabel();
+        }
+
+        if ($this->selectedFixedMenu() !== null) {
+            return $this->fixedFoodPackageLabel();
+        }
+
+        return null;
+    }
+
+    /**
+     * Return the calculated total amount from all payment breakdown rows.
+     */
+    #[Computed]
+    public function paymentTotalAmount(): ?int
+    {
+        $totalAmount = array_sum(array_column($this->paymentBreakdown(), 'amount'));
+
+        return $totalAmount > 0 ? $totalAmount : null;
+    }
+
+    /**
+     * Return custom copy for the selected payment price, when configured.
+     */
+    #[Computed]
+    public function paymentPackageLabel(): ?string
+    {
+        $selectedPaymentPrice = $this->selectedRegistrationPaymentPrice();
+
+        if (blank($selectedPaymentPrice['label'] ?? null)) {
+            return $this->selectedVisitorTypeLabel();
+        }
+
+        return (string) $selectedPaymentPrice['label'];
     }
 
     /**
@@ -700,15 +820,48 @@ class RegistranFormComponent extends Component
      */
     protected function formatPaymentAmount(mixed $amount): ?string
     {
+        $normalizedAmount = $this->normalizePaymentAmount($amount);
+
+        if ($normalizedAmount === null) {
+            return null;
+        }
+
+        return 'IDR '.number_format($normalizedAmount, 0, ',', '.');
+    }
+
+    /**
+     * Build a single payment row when a usable amount exists.
+     *
+     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string}>
+     */
+    protected function paymentBreakdownLine(string $label, ?string $description, mixed $amount): array
+    {
+        $normalizedAmount = $this->normalizePaymentAmount($amount);
+
+        if ($normalizedAmount === null) {
+            return [];
+        }
+
+        return [[
+            'label' => $label,
+            'description' => $description,
+            'amount' => $normalizedAmount,
+            'amount_label' => $this->formatPaymentAmount($normalizedAmount),
+        ]];
+    }
+
+    /**
+     * Convert plain or masked IDR values into an integer amount.
+     */
+    protected function normalizePaymentAmount(mixed $amount): ?int
+    {
         if (blank($amount)) {
             return null;
         }
 
-        if (is_numeric($amount)) {
-            return 'IDR '.number_format((float) $amount, 0, ',', '.');
-        }
+        $digits = preg_replace('/\D/', '', (string) $amount);
 
-        return (string) $amount;
+        return $digits === '' ? null : (int) $digits;
     }
 
     /**

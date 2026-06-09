@@ -136,6 +136,69 @@ class RegistranFormComponentTest extends TestCase
         $this->assertSame('IDR 175.000', $component->instance()->paymentAmountLabel());
     }
 
+    public function test_it_combines_registration_price_and_food_price_in_payment_detail(): void
+    {
+        $event = $this->createEvent([
+            'session' => ['offline'],
+        ], [
+            'food_type' => FoodType::FIXED,
+            'offline_foods' => [
+                [
+                    'visitor_type' => VisitorType::MAGNITUDE->value,
+                    'food' => 'Magnitude Dinner',
+                    'price' => '125000',
+                ],
+                [
+                    'visitor_type' => VisitorType::VISITOR->value,
+                    'food' => 'Visitor Dinner',
+                    'price' => '175000',
+                ],
+            ],
+            'registration_payment_prices' => [
+                [
+                    'visitor_type' => VisitorType::MAGNITUDE->value,
+                    'price' => '99.000',
+                    'label' => 'MAGNITUDE early bird',
+                ],
+                [
+                    'visitor_type' => VisitorType::VISITOR->value,
+                    'price' => '149000',
+                ],
+            ],
+        ]);
+
+        $component = Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ]);
+
+        $component->set('type', VisitorType::MAGNITUDE->value);
+
+        $this->assertSame('IDR 224.000', $component->instance()->paymentAmountLabel());
+        $this->assertSame('MAGNITUDE early bird', $component->instance()->paymentPackageLabel());
+        $this->assertSame('Magnitude Dinner', $component->instance()->fixedFoodPackageLabel());
+        $this->assertSame(224000, $component->instance()->paymentTotalAmount());
+        $this->assertSame([
+            [
+                'label' => 'Registration fee',
+                'description' => 'MAGNITUDE early bird',
+                'amount' => 99000,
+                'amount_label' => 'IDR 99.000',
+            ],
+            [
+                'label' => 'Food package',
+                'description' => 'Magnitude Dinner',
+                'amount' => 125000,
+                'amount_label' => 'IDR 125.000',
+            ],
+        ], $component->instance()->paymentBreakdown());
+
+        $component->set('type', VisitorType::VISITOR->value);
+
+        $this->assertSame('IDR 324.000', $component->instance()->paymentAmountLabel());
+        $this->assertSame('Visitor', $component->instance()->paymentPackageLabel());
+    }
+
     /**
      * @param  array<string, mixed>  $eventAttributes
      * @param  array<string, mixed>  $detailAttributes
@@ -166,6 +229,7 @@ class RegistranFormComponentTest extends TestCase
             'online_visitor_type_list' => $detailAttributes['online_visitor_type_list'] ?? null,
             'offline_visitor_type_list' => $detailAttributes['offline_visitor_type_list'] ?? null,
             'excluded_payment_list' => $detailAttributes['excluded_payment_list'] ?? null,
+            'registration_payment_prices' => $detailAttributes['registration_payment_prices'] ?? null,
         ]);
 
         return $event->refresh()->load('detail');
