@@ -97,12 +97,14 @@ class EventResource extends Resource
         return [
             SpatieMediaLibraryFileUpload::make('banner')
                 ->label(__('Event Banner'))
+                ->helperText('Wide image used as the main event banner. Recommended ratio: 2.56:1.')
                 ->collection('banner')
                 ->imageEditor()
                 ->imageCropAspectRatio('2.56:1'),
 
             SpatieMediaLibraryFileUpload::make('thumbnail')
                 ->label(__('Event Thumbnail'))
+                ->helperText('Preview image shown in event lists. Recommended ratio: 2.56:1.')
                 ->collection('thumbnail')
                 ->imageEditor()
                 ->imageCropAspectRatio('2.56:1'),
@@ -130,6 +132,7 @@ class EventResource extends Resource
 
                         CheckboxList::make('session')
                             ->label(__('Available Sessions'))
+                            ->helperText('Only selected session types will be offered to registrants.')
                             ->options([
                                 'offline' => 'Offline',
                                 'online' => 'Online',
@@ -156,10 +159,12 @@ class EventResource extends Resource
                     ->columns(2)
                     ->schema([
                         Toggle::make('hide')
-                            ->label(__('Hide Event')),
+                            ->label(__('Hide Event'))
+                            ->helperText('Removes this event from the public event list.'),
 
                         Toggle::make('coming_soon')
                             ->label(__('Coming Soon'))
+                            ->helperText('Shows the event as upcoming while keeping registration unavailable.')
                             ->default(false),
                     ]),
             ]);
@@ -173,6 +178,7 @@ class EventResource extends Resource
             ->schema([
                 DatePicker::make('start_date')
                     ->label(__('Start Date'))
+                    ->helperText('The date when the event takes place.')
                     ->timezone('Asia/Jakarta')
                     ->live()
                     ->afterStateUpdated(
@@ -182,11 +188,13 @@ class EventResource extends Resource
 
                 DatePicker::make('registration_date')
                     ->label(__('Registration Opens'))
+                    ->helperText('Registrants can access the registration form from this date.')
                     ->timezone('Asia/Jakarta')
                     ->required(),
 
                 DateTimePicker::make('registration_end')
                     ->label(__('Registration Closes'))
+                    ->helperText('Registration is rejected after this date and time.')
                     ->timezone('Asia/Jakarta')
                     ->seconds(false)
                     ->required(),
@@ -246,10 +254,12 @@ class EventResource extends Resource
 
                 TextInput::make('online_link')
                     ->label(__('Meeting Link'))
+                    ->helperText('Full URL opened by online attendees, including https://.')
                     ->required(),
 
                 TextInput::make('online_password')
                     ->label(__('Meeting Password'))
+                    ->helperText('Password displayed to registered online attendees.')
                     ->required(),
             ]);
     }
@@ -276,6 +286,7 @@ class EventResource extends Resource
 
                 TextInput::make('offline_location')
                     ->label(__('Map URL'))
+                    ->helperText('Full Google Maps or other navigation URL for the venue.')
                     ->required()
                     ->url()
                     ->columnSpanFull(),
@@ -293,11 +304,14 @@ class EventResource extends Resource
                     ->schema([
                         Toggle::make('enable_registration')
                             ->label(__('Enable Registration'))
+                            ->helperText('Turn this off to keep the event visible without accepting registrations.')
                             ->default(true)
                             ->columnSpanFull(),
 
                         Toggle::make('override_online_visitor_type')
                             ->label(__('Customize Online Visitor Types'))
+                            ->helperText('Restrict online registration to selected visitor types.')
+                            ->columnSpanFull()
                             ->live(),
 
                         Select::make('online_visitor_type_list')
@@ -306,10 +320,13 @@ class EventResource extends Resource
                             ->options(VisitorType::class)
                             ->hidden(fn (Get $get): bool => ! $get('override_online_visitor_type'))
                             ->required(fn (Get $get): bool => $get('override_online_visitor_type'))
-                            ->hintActions(self::visitorTypeBulkActions()),
+                            ->hintActions(self::visitorTypeBulkActions())
+                            ->columnSpanFull(),
 
                         Toggle::make('override_offline_visitor_type')
                             ->label(__('Customize Offline Visitor Types'))
+                            ->helperText('Restrict offline registration to selected visitor types.')
+                            ->columnSpanFull()
                             ->live(),
 
                         Select::make('offline_visitor_type_list')
@@ -318,7 +335,8 @@ class EventResource extends Resource
                             ->options(VisitorType::class)
                             ->hidden(fn (Get $get): bool => ! $get('override_offline_visitor_type'))
                             ->required(fn (Get $get): bool => $get('override_offline_visitor_type'))
-                            ->hintActions(self::visitorTypeBulkActions()),
+                            ->hintActions(self::visitorTypeBulkActions())
+                            ->columnSpanFull(),
                     ]),
 
                 Section::make('Payment')
@@ -333,6 +351,7 @@ class EventResource extends Resource
 
                         Select::make('excluded_payment_list')
                             ->label(__('Visitor Types Excluded from Payment'))
+                            ->helperText('Selected visitor types will not be charged a registration fee or asked for payment proof.')
                             ->multiple()
                             ->options(VisitorType::class)
                             ->hidden(fn (Get $get): bool => ! $get('show_invoice_upload'))
@@ -361,15 +380,19 @@ class EventResource extends Resource
                     ->schema([
                         Toggle::make('override_offline_food_price_text')
                             ->label(__('Use Custom Price Text'))
+                            ->helperText('Replace the formatted general food price with custom public text.')
+                            ->columnSpanFull()
                             ->live(),
 
                         RichEditor::make('offline_food_price_text')
                             ->label(__('Custom Food Price Text'))
                             ->hidden(fn (Get $get): bool => ! $get('override_offline_food_price_text'))
-                            ->required(fn (Get $get): bool => $get('override_offline_food_price_text')),
+                            ->required(fn (Get $get): bool => $get('override_offline_food_price_text'))
+                            ->columnSpanFull(),
 
                         TextInput::make('offline_food_price')
                             ->label(__('General Food Price'))
+                            ->helperText('Public fallback price. Item-specific food prices are configured below.')
                             ->hidden(fn (Get $get): bool => $get('override_offline_food_price_text'))
                             ->required(fn (Get $get): bool => ! $get('override_offline_food_price_text'))
                             ->mask(self::idrMoneyMask())
@@ -387,10 +410,12 @@ class EventResource extends Resource
                     ->schema([
                         Toggle::make('food_required')
                             ->label(__('Food Selection Required'))
+                            ->helperText('Registrants must choose food before submitting the registration form.')
                             ->default(false),
 
                         Select::make('food_type')
                             ->label(__('Food Type'))
+                            ->helperText('Changing this option clears existing menu items because each type uses a different structure.')
                             ->options(FoodType::class)
                             ->default(FoodType::BUFFET)
                             ->live()
@@ -418,9 +443,13 @@ class EventResource extends Resource
             ->label(__('Visitor Type Fee Overrides'))
             ->helperText('Optional. Overrides the default registration fee for selected visitor types.')
             ->hidden(fn (Get $get): bool => ! $get('show_invoice_upload'))
+            ->defaultItems(0)
+            ->addActionLabel(__('Add Visitor Type Fee'))
             ->collapsible()
             ->collapsed()
             ->itemLabel(fn (array $state): ?string => VisitorType::tryFrom($state['visitor_type'] ?? '')?->getLabel())
+            ->columnSpanFull()
+            ->grid(2)
             ->columns(2)
             ->schema([
                 Select::make('visitor_type')
@@ -502,6 +531,7 @@ class EventResource extends Resource
                     ->schema([
                         Select::make('event_type')
                             ->label(__('Event Type'))
+                            ->helperText('Controls the event type wording shown on the public page.')
                             ->options([
                                 'soft launch' => 'SOFT LAUNCH',
                                 'grand launch' => 'GRAND LAUNCH',
@@ -510,6 +540,7 @@ class EventResource extends Resource
 
                         Toggle::make('override_deadline_text')
                             ->label(__('Use Custom Deadline Text'))
+                            ->helperText('Replace the default registration deadline message.')
                             ->live(),
 
                         RichEditor::make('deadline_text')
@@ -520,6 +551,7 @@ class EventResource extends Resource
 
                         Toggle::make('override_what_to_prepare')
                             ->label(__('Use Custom Preparation Text'))
+                            ->helperText('Replace the default instructions shown before the event.')
                             ->live(),
 
                         RichEditor::make('what_to_prepare')
@@ -530,6 +562,7 @@ class EventResource extends Resource
 
                         Toggle::make('override_description_1')
                             ->label(__('Use Custom Primary Description'))
+                            ->helperText('Replace the main event description shown publicly.')
                             ->live(),
 
                         RichEditor::make('description_1')
@@ -540,6 +573,7 @@ class EventResource extends Resource
 
                         Toggle::make('override_description_2')
                             ->label(__('Use Custom Secondary Description'))
+                            ->helperText('Add or replace the supporting event description.')
                             ->live(),
 
                         RichEditor::make('description_2')
@@ -556,6 +590,7 @@ class EventResource extends Resource
                     ->schema([
                         Toggle::make('override_video')
                             ->label(__('Use Custom Video'))
+                            ->helperText('Use an event-specific video instead of the default video.')
                             ->live(),
 
                         SpatieMediaLibraryFileUpload::make('video')
