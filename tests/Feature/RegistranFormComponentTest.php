@@ -199,6 +199,187 @@ class RegistranFormComponentTest extends TestCase
         $this->assertSame('Visitor', $component->instance()->paymentPackageLabel());
     }
 
+    public function test_it_uses_default_registration_fee_when_visitor_type_has_no_override(): void
+    {
+        $event = $this->createEvent([
+            'session' => ['offline'],
+        ], [
+            'default_registration_fee' => 100000,
+            'registration_payment_prices' => [
+                [
+                    'visitor_type' => VisitorType::MAGNITUDE->value,
+                    'price' => 75000,
+                ],
+            ],
+        ]);
+
+        $component = Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ]);
+
+        $component->set('type', VisitorType::MAGNITUDE->value);
+        $this->assertSame('IDR 75.000', $component->instance()->paymentAmountLabel());
+
+        $component->set('type', VisitorType::VISITOR->value);
+        $this->assertSame('IDR 100.000', $component->instance()->paymentAmountLabel());
+    }
+
+    public function test_zero_default_registration_fee_is_free_and_requires_no_payment_proof(): void
+    {
+        $event = $this->createEvent([
+            'session' => ['offline'],
+        ], [
+            'default_registration_fee' => 0,
+            'show_invoice_upload' => true,
+        ]);
+
+        $component = Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])->set('type', VisitorType::VISITOR->value);
+
+        $this->assertSame('FREE', $component->instance()->paymentAmountLabel());
+        $this->assertSame(0, $component->instance()->paymentTotalAmount());
+        $this->assertFalse($component->instance()->userShouldUploadInvoice());
+        $this->assertSame([
+            [
+                'label' => 'Registration fee',
+                'description' => 'Visitor',
+                'amount' => 0,
+                'amount_label' => 'FREE',
+            ],
+        ], $component->instance()->paymentBreakdown());
+    }
+
+    public function test_default_registration_fee_is_stored_inside_existing_payment_prices_json(): void
+    {
+        $event = $this->createEvent(['session' => ['offline']]);
+        $detail = $event->detail;
+
+        $detail->default_registration_fee = 100000;
+        $detail->registration_payment_prices = [
+            [
+                'visitor_type' => VisitorType::MAGNITUDE->value,
+                'price' => 75000,
+            ],
+        ];
+        $detail->save();
+        $detail->refresh();
+
+        $this->assertSame(100000, $detail->default_registration_fee);
+        $this->assertSame([
+            [
+                'visitor_type' => VisitorType::MAGNITUDE->value,
+                'price' => 75000,
+            ],
+        ], $detail->registration_payment_prices);
+
+        $storedPrices = json_decode($detail->getRawOriginal('registration_payment_prices'), true);
+
+        $this->assertContains([
+            'visitor_type' => EventDetail::DEFAULT_REGISTRATION_PRICE_TYPE,
+            'price' => 100000,
+            'label' => null,
+        ], $storedPrices);
+    }
+
+    public function test_it_only_adds_selected_optional_buffet_food_prices(): void
+    {
+        $event = $this->createEvent([
+            'session' => ['offline'],
+        ], [
+            'food_type' => FoodType::BUFFET,
+            'offline_foods' => [
+                ['food' => 'Nasi Goreng', 'price' => '25.000'],
+                ['food' => 'Sate Ayam', 'price' => null],
+                ['food' => 'Dessert', 'price' => '15000'],
+            ],
+        ]);
+
+        $component = Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])->set('food', ['Nasi Goreng', 'Sate Ayam']);
+
+        $this->assertSame('IDR 25.000', $component->instance()->paymentAmountLabel());
+        $this->assertSame([
+            [
+                'label' => 'Food item',
+                'description' => 'Nasi Goreng',
+                'amount' => 25000,
+                'amount_label' => 'IDR 25.000',
+            ],
+        ], $component->instance()->paymentBreakdown());
+    }
+
+    public function test_it_adds_optional_ala_carte_package_price(): void
+    {
+        $event = $this->createEvent([
+            'session' => ['offline'],
+        ], [
+            'food_type' => FoodType::ALA_CARTE,
+            'offline_foods' => [
+                [
+                    'food' => ['Nasi Goreng', 'Mie Goreng'],
+                    'drink' => ['Tea', 'Coffee'],
+                    'price' => '35.000',
+                ],
+            ],
+        ]);
+
+        $component = Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])->set('food', [
+            'food' => 'Mie Goreng',
+            'drink' => 'Coffee',
+        ]);
+
+        $this->assertSame('IDR 35.000', $component->instance()->paymentAmountLabel());
+        $this->assertSame('Mie Goreng + Coffee', $component->instance()->paymentSummaryLabel());
+    }
+
+    public function test_food_selection_controls_update_live(): void
+    {
+        $buffetEvent = $this->createEvent([
+            'slug' => 'buffet-event',
+            'session' => ['offline'],
+        ], [
+            'food_type' => FoodType::BUFFET,
+            'offline_foods' => [
+                ['food' => 'Nasi Goreng', 'price' => '25000'],
+                ['food' => 'Sate Ayam', 'price' => '30000'],
+            ],
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $buffetEvent->slug,
+            'event' => $buffetEvent,
+        ])->assertSeeHtml('wire:model.live="food"');
+
+        $alaCarteEvent = $this->createEvent([
+            'slug' => 'ala-carte-event',
+            'session' => ['offline'],
+        ], [
+            'food_type' => FoodType::ALA_CARTE,
+            'offline_foods' => [
+                [
+                    'food' => ['Nasi Goreng', 'Mie Goreng'],
+                    'drink' => ['Tea', 'Coffee'],
+                    'price' => '35000',
+                ],
+            ],
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $alaCarteEvent->slug,
+            'event' => $alaCarteEvent,
+        ])
+            ->assertSeeHtml('wire:model.live="food.food"')
+            ->assertSeeHtml('wire:model.live="food.drink"');
+    }
+
     /**
      * @param  array<string, mixed>  $eventAttributes
      * @param  array<string, mixed>  $detailAttributes
@@ -230,6 +411,7 @@ class RegistranFormComponentTest extends TestCase
             'offline_visitor_type_list' => $detailAttributes['offline_visitor_type_list'] ?? null,
             'excluded_payment_list' => $detailAttributes['excluded_payment_list'] ?? null,
             'registration_payment_prices' => $detailAttributes['registration_payment_prices'] ?? null,
+            'default_registration_fee' => $detailAttributes['default_registration_fee'] ?? null,
         ]);
 
         return $event->refresh()->load('detail');

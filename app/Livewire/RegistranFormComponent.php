@@ -332,7 +332,13 @@ class RegistranFormComponent extends Component
     #[Computed]
     public function userShouldUploadInvoice(): bool
     {
-        return ! in_array($this->type, $this->event->detail->excluded_payment_list ?? [], true);
+        if (in_array($this->type, $this->event->detail->excluded_payment_list ?? [], true)) {
+            return false;
+        }
+
+        $paymentBreakdown = $this->paymentBreakdown();
+
+        return $paymentBreakdown === [] || $this->paymentTotalAmount() > 0;
     }
 
     /**
@@ -374,6 +380,13 @@ class RegistranFormComponent extends Component
             }
         }
 
+        if ($this->event->detail->default_registration_fee !== null) {
+            return [
+                'price' => $this->event->detail->default_registration_fee,
+                'label' => null,
+            ];
+        }
+
         return null;
     }
 
@@ -395,7 +408,6 @@ class RegistranFormComponent extends Component
     public function paymentBreakdown(): array
     {
         $selectedPaymentPrice = $this->selectedRegistrationPaymentPrice();
-        $selectedFixedMenu = $this->selectedFixedMenu();
         $paymentBreakdown = [];
 
         if ($selectedPaymentPrice !== null) {
@@ -409,18 +421,10 @@ class RegistranFormComponent extends Component
             ];
         }
 
-        if ($selectedFixedMenu !== null) {
-            $paymentBreakdown = [
-                ...$paymentBreakdown,
-                ...$this->paymentBreakdownLine(
-                    'Food package',
-                    $this->fixedFoodPackageLabel(),
-                    $selectedFixedMenu['price'] ?? null
-                ),
-            ];
-        }
-
-        return $paymentBreakdown;
+        return [
+            ...$paymentBreakdown,
+            ...$this->foodPaymentBreakdown(),
+        ];
     }
 
     /**
@@ -454,11 +458,7 @@ class RegistranFormComponent extends Component
             return $this->paymentPackageLabel();
         }
 
-        if ($this->selectedFixedMenu() !== null) {
-            return $this->fixedFoodPackageLabel();
-        }
-
-        return null;
+        return $this->foodPaymentSummaryLabel();
     }
 
     /**
@@ -467,9 +467,11 @@ class RegistranFormComponent extends Component
     #[Computed]
     public function paymentTotalAmount(): ?int
     {
-        $totalAmount = array_sum(array_column($this->paymentBreakdown(), 'amount'));
+        $paymentBreakdown = $this->paymentBreakdown();
 
-        return $totalAmount > 0 ? $totalAmount : null;
+        return $paymentBreakdown === []
+            ? null
+            : array_sum(array_column($paymentBreakdown, 'amount'));
     }
 
     /**
@@ -776,8 +778,8 @@ class RegistranFormComponent extends Component
     {
         return $this->payment !== null
             && $this->isOfflineSelected()
-            && count($this->offline_foods) > 0
-            && $this->event->detail->show_invoice_upload;
+            && $this->event->detail->show_invoice_upload
+            && $this->userShouldUploadInvoice();
     }
 
     /**
@@ -826,6 +828,10 @@ class RegistranFormComponent extends Component
             return null;
         }
 
+        if ($normalizedAmount === 0) {
+            return 'FREE';
+        }
+
         return 'IDR '.number_format($normalizedAmount, 0, ',', '.');
     }
 
@@ -851,11 +857,120 @@ class RegistranFormComponent extends Component
     }
 
     /**
+     * Build optional food payment rows for the configured food type.
+     *
+     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string}>
+     */
+    protected function foodPaymentBreakdown(): array
+    {
+        return match ($this->event->detail->food_type) {
+            FoodType::BUFFET => $this->buffetPaymentBreakdown(),
+            FoodType::ALA_CARTE => $this->alaCartePaymentBreakdown(),
+            FoodType::FIXED => $this->fixedFoodPaymentBreakdown(),
+            default => [],
+        };
+    }
+
+    /**
+     * Return one payment row for each selected buffet item with a configured price.
+     *
+     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string}>
+     */
+    protected function buffetPaymentBreakdown(): array
+    {
+        $selectedFoods = is_array($this->food) ? $this->food : [$this->food];
+        $paymentBreakdown = [];
+
+        foreach ($this->offline_foods as $foodItem) {
+            $foodName = $foodItem['food'] ?? null;
+
+            if (! is_string($foodName) || ! in_array($foodName, $selectedFoods, true)) {
+                continue;
+            }
+
+            $paymentBreakdown = [
+                ...$paymentBreakdown,
+                ...$this->paymentBreakdownLine('Food item', $foodName, $foodItem['price'] ?? null),
+            ];
+        }
+
+        return $paymentBreakdown;
+    }
+
+    /**
+     * Return the optional package price for an ala carte food and drink selection.
+     *
+     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string}>
+     */
+    protected function alaCartePaymentBreakdown(): array
+    {
+        $foodConfiguration = $this->offline_foods[0] ?? null;
+        $selectionLabel = $this->alaCarteSelectionLabel();
+
+        if (! is_array($foodConfiguration) || $selectionLabel === null) {
+            return [];
+        }
+
+        return $this->paymentBreakdownLine(
+            'Food package',
+            $selectionLabel,
+            $foodConfiguration['price'] ?? null
+        );
+    }
+
+    /**
+     * Return the optional fixed package food price.
+     *
+     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string}>
+     */
+    protected function fixedFoodPaymentBreakdown(): array
+    {
+        $selectedFixedMenu = $this->selectedFixedMenu();
+
+        if ($selectedFixedMenu === null) {
+            return [];
+        }
+
+        return $this->paymentBreakdownLine(
+            'Food package',
+            $this->fixedFoodPackageLabel(),
+            $selectedFixedMenu['price'] ?? null
+        );
+    }
+
+    /**
+     * Return a concise food label for the payment summary header.
+     */
+    protected function foodPaymentSummaryLabel(): ?string
+    {
+        $foodBreakdown = $this->foodPaymentBreakdown();
+
+        if (count($foodBreakdown) !== 1) {
+            return null;
+        }
+
+        return $foodBreakdown[0]['description'];
+    }
+
+    /**
+     * Return the selected ala carte food and drink as a package label.
+     */
+    protected function alaCarteSelectionLabel(): ?string
+    {
+        $selectedItems = array_filter([
+            $this->food['food'] ?? null,
+            $this->food['drink'] ?? null,
+        ], fn (mixed $item): bool => is_string($item) && filled($item));
+
+        return $selectedItems === [] ? null : implode(' + ', $selectedItems);
+    }
+
+    /**
      * Convert plain or masked IDR values into an integer amount.
      */
     protected function normalizePaymentAmount(mixed $amount): ?int
     {
-        if (blank($amount)) {
+        if ($amount === null || $amount === '') {
             return null;
         }
 

@@ -20,6 +20,7 @@ use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
+use Filament\Forms\Components\Tabs;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
@@ -39,12 +40,13 @@ class EventResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            ...self::mediaUploads(),
-            ...self::eventFields(),
-            self::eventDateSection(),
-            Toggle::make('coming_soon')
-                ->default(false),
-            self::eventDetailGroup(),
+            Tabs::make('Event Configuration')
+                ->persistTabInQueryString('event-tab')
+                ->columnSpanFull()
+                ->tabs([
+                    self::overviewTab(),
+                    self::eventDetailsTab(),
+                ]),
         ]);
     }
 
@@ -94,55 +96,84 @@ class EventResource extends Resource
     {
         return [
             SpatieMediaLibraryFileUpload::make('banner')
+                ->label(__('Event Banner'))
                 ->collection('banner')
                 ->imageEditor()
-                ->imageCropAspectRatio('2.56:1')
-                ->columnSpanFull(),
+                ->imageCropAspectRatio('2.56:1'),
 
             SpatieMediaLibraryFileUpload::make('thumbnail')
+                ->label(__('Event Thumbnail'))
                 ->collection('thumbnail')
                 ->imageEditor()
-                ->imageCropAspectRatio('2.56:1')
-                ->columnSpanFull(),
+                ->imageCropAspectRatio('2.56:1'),
         ];
     }
 
-    /**
-     * @return array<int, mixed>
-     */
-    protected static function eventFields(): array
+    protected static function overviewTab(): Tabs\Tab
     {
-        return [
-            TextInput::make('name')
-                ->label(__('Name')),
+        return Tabs\Tab::make('Overview')
+            ->icon('heroicon-m-information-circle')
+            ->schema([
+                Section::make('Media')
+                    ->description('Upload the banner and thumbnail used on the public event page.')
+                    ->columns(2)
+                    ->collapsible()
+                    ->schema(self::mediaUploads()),
 
-            CheckboxList::make('session')
-                ->options([
-                    'offline' => 'Offline',
-                    'online' => 'Online',
-                ])
-                ->required(),
+                Section::make('Event Information')
+                    ->description('Name the event and choose the attendance channels available to registrants.')
+                    ->columns(2)
+                    ->schema([
+                        TextInput::make('name')
+                            ->label(__('Event Name'))
+                            ->columnSpanFull(),
 
-            Toggle::make('checkable')
-                ->live(),
+                        CheckboxList::make('session')
+                            ->label(__('Available Sessions'))
+                            ->options([
+                                'offline' => 'Offline',
+                                'online' => 'Online',
+                            ])
+                            ->columns(2)
+                            ->required()
+                            ->columnSpanFull(),
 
-            Toggle::make('checkable_one')
-                ->hidden(fn (Get $get): bool => ! $get('checkable')),
+                        Toggle::make('checkable')
+                            ->label(__('Allow Session Selection'))
+                            ->helperText('Let registrants choose which available session they will attend.')
+                            ->live(),
 
-            Toggle::make('hide'),
-        ];
+                        Toggle::make('checkable_one')
+                            ->label(__('Limit to One Session'))
+                            ->helperText('Registrants may select only one attendance session.')
+                            ->hidden(fn (Get $get): bool => ! $get('checkable')),
+                    ]),
+
+                self::eventDateSection(),
+
+                Section::make('Visibility')
+                    ->description('Control whether the event is visible and ready for registration.')
+                    ->columns(2)
+                    ->schema([
+                        Toggle::make('hide')
+                            ->label(__('Hide Event')),
+
+                        Toggle::make('coming_soon')
+                            ->label(__('Coming Soon'))
+                            ->default(false),
+                    ]),
+            ]);
     }
 
     protected static function eventDateSection(): Section
     {
-        return Section::make(__('Event Date'))
-            ->description('Please fill in the event date.')
-            ->columns(12)
+        return Section::make(__('Schedule & Registration Window'))
+            ->description('Set the event date and when registration opens and closes.')
+            ->columns(3)
             ->schema([
                 DatePicker::make('start_date')
                     ->label(__('Start Date'))
                     ->timezone('Asia/Jakarta')
-                    ->columnSpan(6)
                     ->live()
                     ->afterStateUpdated(
                         fn (Set $set, ?string $state) => self::startDateSelected($set, $state)
@@ -150,48 +181,62 @@ class EventResource extends Resource
                     ->required(),
 
                 DatePicker::make('registration_date')
-                    ->label(__('Registration Date'))
+                    ->label(__('Registration Opens'))
                     ->timezone('Asia/Jakarta')
-                    ->columnSpan(6)
                     ->required(),
 
                 DateTimePicker::make('registration_end')
-                    ->label(__('Registration End date'))
+                    ->label(__('Registration Closes'))
                     ->timezone('Asia/Jakarta')
                     ->seconds(false)
-                    ->columnSpan(6)
                     ->required(),
             ]);
     }
 
-    protected static function eventDetailGroup(): Group
+    protected static function eventDetailsTab(): Tabs\Tab
     {
-        return Group::make()
-            ->columnSpanFull()
-            ->relationship('detail')
+        return Tabs\Tab::make('Event Details')
+            ->icon('heroicon-m-adjustments-horizontal')
             ->schema([
-                Toggle::make('enable_registration')
-                    ->default(true),
-                self::eventScheduleGrid(),
-                self::eventDetailOverrideSection(),
+                Group::make()
+                    ->columnSpanFull()
+                    ->relationship('detail')
+                    ->schema([
+                        Tabs::make('Event Detail Categories')
+                            ->persistTabInQueryString('detail-tab')
+                            ->columnSpanFull()
+                            ->tabs([
+                                self::sessionsTab(),
+                                self::registrationTab(),
+                                self::foodTab(),
+                                self::contentTab(),
+                            ]),
+                    ]),
             ]);
     }
 
-    protected static function eventScheduleGrid(): Grid
+    protected static function sessionsTab(): Tabs\Tab
     {
-        return Grid::make(12)
+        return Tabs\Tab::make('Sessions')
+            ->icon('heroicon-m-calendar-days')
             ->schema([
-                self::onlineEventDetailSection(),
-                self::offlineEventDetailSection(),
+                Grid::make(12)
+                    ->schema([
+                        self::onlineEventDetailSection(),
+                        self::offlineVenueSection(),
+                    ]),
             ]);
     }
 
     protected static function onlineEventDetailSection(): Section
     {
-        return Section::make('Online Event Detail')
+        return Section::make('Online Session')
+            ->description('Configure the meeting time and access credentials.')
             ->columnSpan(6)
+            ->columns(2)
             ->schema([
                 DateTimePicker::make('online_time')
+                    ->label(__('Start Time'))
                     ->timezone('Asia/Jakarta')
                     ->displayFormat('H:i')
                     ->default('09:00')
@@ -200,24 +245,23 @@ class EventResource extends Resource
                     ->columnSpanFull(),
 
                 TextInput::make('online_link')
-                    ->label(__('Online Link'))
-                    ->required()
-                    ->columnSpanFull(),
+                    ->label(__('Meeting Link'))
+                    ->required(),
 
                 TextInput::make('online_password')
-                    ->label(__('Online Password'))
-                    ->required()
-                    ->columnSpanFull(),
+                    ->label(__('Meeting Password'))
+                    ->required(),
             ]);
     }
 
-    protected static function offlineEventDetailSection(): Section
+    protected static function offlineVenueSection(): Section
     {
-        return Section::make('Offline Event Detail')
+        return Section::make('Offline Session')
+            ->description('Configure the venue, directions, and start time.')
             ->columnSpan(6)
             ->schema([
                 DateTimePicker::make('offline_time')
-                    ->label(__('Offline Time'))
+                    ->label(__('Start Time'))
                     ->timezone('Asia/Jakarta')
                     ->displayFormat('H:i')
                     ->default('14:00')
@@ -226,66 +270,143 @@ class EventResource extends Resource
                     ->columnSpanFull(),
 
                 RichEditor::make('offline_address')
-                    ->label(__('Offline Address'))
+                    ->label(__('Venue Address'))
                     ->required()
                     ->columnSpanFull(),
 
                 TextInput::make('offline_location')
-                    ->label(__('Offline Location URL'))
+                    ->label(__('Map URL'))
                     ->required()
                     ->url()
                     ->columnSpanFull(),
+            ]);
+    }
 
-                Toggle::make('show_invoice_upload')
-                    ->live(),
+    protected static function registrationTab(): Tabs\Tab
+    {
+        return Tabs\Tab::make('Registration & Payment')
+            ->icon('heroicon-m-credit-card')
+            ->schema([
+                Section::make('Registration Access')
+                    ->description('Control registration availability and visitor types for each session.')
+                    ->columns(2)
+                    ->schema([
+                        Toggle::make('enable_registration')
+                            ->label(__('Enable Registration'))
+                            ->default(true)
+                            ->columnSpanFull(),
 
-                Select::make('excluded_payment_list')
-                    ->multiple()
-                    ->options(VisitorType::class)
-                    ->hidden(fn (Get $get): bool => ! $get('show_invoice_upload'))
-                    ->hintActions(self::visitorTypeBulkActions()),
+                        Toggle::make('override_online_visitor_type')
+                            ->label(__('Customize Online Visitor Types'))
+                            ->live(),
 
-                self::registrationPaymentPricesRepeater(),
+                        Select::make('online_visitor_type_list')
+                            ->label(__('Online Visitor Types'))
+                            ->multiple()
+                            ->options(VisitorType::class)
+                            ->hidden(fn (Get $get): bool => ! $get('override_online_visitor_type'))
+                            ->required(fn (Get $get): bool => $get('override_online_visitor_type'))
+                            ->hintActions(self::visitorTypeBulkActions()),
 
-                Toggle::make('override_offline_food_price_text')
-                    ->live(),
+                        Toggle::make('override_offline_visitor_type')
+                            ->label(__('Customize Offline Visitor Types'))
+                            ->live(),
 
-                RichEditor::make('offline_food_price_text')
-                    ->label(__('Offline Food Price Text'))
-                    ->hidden(fn (Get $get): bool => ! $get('override_offline_food_price_text'))
-                    ->required(fn (Get $get): bool => $get('override_offline_food_price_text')),
+                        Select::make('offline_visitor_type_list')
+                            ->label(__('Offline Visitor Types'))
+                            ->multiple()
+                            ->options(VisitorType::class)
+                            ->hidden(fn (Get $get): bool => ! $get('override_offline_visitor_type'))
+                            ->required(fn (Get $get): bool => $get('override_offline_visitor_type'))
+                            ->hintActions(self::visitorTypeBulkActions()),
+                    ]),
 
-                TextInput::make('offline_food_price')
-                    ->label(__('Offline Food Price'))
-                    ->hidden(fn (Get $get): bool => $get('override_offline_food_price_text'))
-                    ->required(fn (Get $get): bool => ! $get('override_offline_food_price_text'))
-                    ->mask(self::idrMoneyMask())
-                    ->inputMode('numeric')
-                    ->extraInputAttributes(self::idrInputAttributes(), true)
-                    ->stripCharacters('.')
-                    ->dehydrateStateUsing(fn (mixed $state): ?string => self::normalizeIdrAmount($state))
-                    ->formatStateUsing(fn (mixed $state): ?string => self::formatIdrAmountForAdmin($state))
-                    ->prefix('IDR')
-                    ->columnSpanFull(),
+                Section::make('Payment')
+                    ->description('Configure proof of payment and registration fees.')
+                    ->columns(2)
+                    ->schema([
+                        Toggle::make('show_invoice_upload')
+                            ->label(__('Require Payment Proof'))
+                            ->helperText('The upload is skipped automatically when the calculated total is free.')
+                            ->columnSpanFull()
+                            ->live(),
 
-                Toggle::make('food_required')
-                    ->default(false),
+                        Select::make('excluded_payment_list')
+                            ->label(__('Visitor Types Excluded from Payment'))
+                            ->multiple()
+                            ->options(VisitorType::class)
+                            ->hidden(fn (Get $get): bool => ! $get('show_invoice_upload'))
+                            ->hintActions(self::visitorTypeBulkActions())
+                            ->columnSpanFull(),
 
-                Select::make('food_type')
-                    ->options(FoodType::class)
-                    ->default(FoodType::BUFFET)
-                    ->live()
-                    ->afterStateUpdated(fn (Set $set) => $set('offline_foods', null))
-                    ->selectablePlaceholder(false),
+                        self::idrPriceInput('default_registration_fee', __('Default Registration Fee'))
+                            ->helperText('Used when the selected visitor type has no override below. Enter 0 for free; leave empty for no default fee.')
+                            ->hidden(fn (Get $get): bool => ! $get('show_invoice_upload'))
+                            ->columnSpanFull(),
 
-                self::offlineFoodsRepeater(),
+                        self::registrationPaymentPricesRepeater(),
+                    ]),
+            ]);
+    }
+
+    protected static function foodTab(): Tabs\Tab
+    {
+        return Tabs\Tab::make('Food')
+            ->icon('heroicon-m-shopping-bag')
+            ->schema([
+                Section::make('Public Food Price')
+                    ->description('Configure the general price copy shown on the event page.')
+                    ->collapsible()
+                    ->columns(2)
+                    ->schema([
+                        Toggle::make('override_offline_food_price_text')
+                            ->label(__('Use Custom Price Text'))
+                            ->live(),
+
+                        RichEditor::make('offline_food_price_text')
+                            ->label(__('Custom Food Price Text'))
+                            ->hidden(fn (Get $get): bool => ! $get('override_offline_food_price_text'))
+                            ->required(fn (Get $get): bool => $get('override_offline_food_price_text')),
+
+                        TextInput::make('offline_food_price')
+                            ->label(__('General Food Price'))
+                            ->hidden(fn (Get $get): bool => $get('override_offline_food_price_text'))
+                            ->required(fn (Get $get): bool => ! $get('override_offline_food_price_text'))
+                            ->mask(self::idrMoneyMask())
+                            ->inputMode('numeric')
+                            ->extraInputAttributes(self::idrInputAttributes(), true)
+                            ->stripCharacters('.')
+                            ->dehydrateStateUsing(fn (mixed $state): ?string => self::normalizeIdrAmount($state))
+                            ->formatStateUsing(fn (mixed $state): ?string => self::formatIdrAmountForAdmin($state))
+                            ->prefix('IDR')
+                            ->columnSpanFull(),
+                    ]),
+
+                Section::make('Food Selection')
+                    ->description('Choose the menu structure and optional prices included in payment detail.')
+                    ->schema([
+                        Toggle::make('food_required')
+                            ->label(__('Food Selection Required'))
+                            ->default(false),
+
+                        Select::make('food_type')
+                            ->label(__('Food Type'))
+                            ->options(FoodType::class)
+                            ->default(FoodType::BUFFET)
+                            ->live()
+                            ->afterStateUpdated(fn (Set $set) => $set('offline_foods', null))
+                            ->selectablePlaceholder(false),
+
+                        self::offlineFoodsRepeater(),
+                    ]),
             ]);
     }
 
     protected static function offlineFoodsRepeater(): Repeater
     {
         return Repeater::make('offline_foods')
-            ->label(__('Foods Items'))
+            ->label(__('Menu Items'))
+            ->addActionLabel(__('Add Menu Item'))
             ->maxItems(fn (Get $get): int => self::maxFoodItems($get))
             ->collapsible()
             ->schema(fn (Get $get): array => self::foodItemSchema($get));
@@ -294,10 +415,12 @@ class EventResource extends Resource
     protected static function registrationPaymentPricesRepeater(): Repeater
     {
         return Repeater::make('registration_payment_prices')
-            ->label(__('Registration Payment Prices'))
-            ->helperText('Optional registration fee list shown before payment proof upload. Food prices are configured separately in Foods Items.')
+            ->label(__('Visitor Type Fee Overrides'))
+            ->helperText('Optional. Overrides the default registration fee for selected visitor types.')
             ->hidden(fn (Get $get): bool => ! $get('show_invoice_upload'))
             ->collapsible()
+            ->collapsed()
+            ->itemLabel(fn (array $state): ?string => VisitorType::tryFrom($state['visitor_type'] ?? '')?->getLabel())
             ->columns(2)
             ->schema([
                 Select::make('visitor_type')
@@ -327,6 +450,9 @@ class EventResource extends Resource
                     ->label(__('Food'))
                     ->required()
                     ->columnSpan(6),
+                self::idrPriceInput('price', __('Food Price'))
+                    ->helperText('Optional. Added to payment detail only when this food is selected.')
+                    ->columnSpan(6),
             ],
 
             FoodType::ALA_CARTE => [
@@ -342,6 +468,9 @@ class EventResource extends Resource
                             ->label(__('Drinks'))
                             ->required()
                     ),
+                self::idrPriceInput('price', __('Package Price'))
+                    ->helperText('Optional. Applies to the selected food and drink combination.')
+                    ->columnSpanFull(),
             ],
 
             FoodType::FIXED => [
@@ -363,77 +492,79 @@ class EventResource extends Resource
         };
     }
 
-    protected static function eventDetailOverrideSection(): Section
+    protected static function contentTab(): Tabs\Tab
     {
-        return Section::make('Event Detail Override')
+        return Tabs\Tab::make('Content')
+            ->icon('heroicon-m-document-text')
             ->schema([
-                Toggle::make('override_deadline_text')
-                    ->live(),
+                Section::make('Event Copy')
+                    ->description('Customize the public text shown on the event and registration pages.')
+                    ->schema([
+                        Select::make('event_type')
+                            ->label(__('Event Type'))
+                            ->options([
+                                'soft launch' => 'SOFT LAUNCH',
+                                'grand launch' => 'GRAND LAUNCH',
+                            ])
+                            ->default('soft launch'),
 
-                RichEditor::make('deadline_text')
-                    ->hidden(fn (Get $get): bool => ! $get('override_deadline_text'))
-                    ->required(fn (Get $get): bool => $get('override_deadline_text'))
-                    ->columnSpanFull(),
+                        Toggle::make('override_deadline_text')
+                            ->label(__('Use Custom Deadline Text'))
+                            ->live(),
 
-                Select::make('event_type')
-                    ->options([
-                        'soft launch' => 'SOFT LAUNCH',
-                        'grand launch' => 'GRAND LAUNCH',
-                    ])
-                    ->default('soft launch'),
+                        RichEditor::make('deadline_text')
+                            ->label(__('Deadline Text'))
+                            ->hidden(fn (Get $get): bool => ! $get('override_deadline_text'))
+                            ->required(fn (Get $get): bool => $get('override_deadline_text'))
+                            ->columnSpanFull(),
 
-                Toggle::make('override_online_visitor_type')
-                    ->live(),
+                        Toggle::make('override_what_to_prepare')
+                            ->label(__('Use Custom Preparation Text'))
+                            ->live(),
 
-                Select::make('online_visitor_type_list')
-                    ->multiple()
-                    ->options(VisitorType::class)
-                    ->hidden(fn (Get $get): bool => ! $get('override_online_visitor_type'))
-                    ->required(fn (Get $get): bool => $get('override_online_visitor_type'))
-                    ->hintActions(self::visitorTypeBulkActions()),
+                        RichEditor::make('what_to_prepare')
+                            ->label(__('What to Prepare'))
+                            ->hidden(fn (Get $get): bool => ! $get('override_what_to_prepare'))
+                            ->required(fn (Get $get): bool => $get('override_what_to_prepare'))
+                            ->columnSpanFull(),
 
-                Toggle::make('override_offline_visitor_type')
-                    ->live(),
+                        Toggle::make('override_description_1')
+                            ->label(__('Use Custom Primary Description'))
+                            ->live(),
 
-                Select::make('offline_visitor_type_list')
-                    ->multiple()
-                    ->options(VisitorType::class)
-                    ->hidden(fn (Get $get): bool => ! $get('override_offline_visitor_type'))
-                    ->required(fn (Get $get): bool => $get('override_offline_visitor_type'))
-                    ->hintActions(self::visitorTypeBulkActions()),
+                        RichEditor::make('description_1')
+                            ->label(__('Primary Description'))
+                            ->hidden(fn (Get $get): bool => ! $get('override_description_1'))
+                            ->required(fn (Get $get): bool => $get('override_description_1'))
+                            ->columnSpanFull(),
 
-                Toggle::make('override_what_to_prepare')
-                    ->live(),
+                        Toggle::make('override_description_2')
+                            ->label(__('Use Custom Secondary Description'))
+                            ->live(),
 
-                RichEditor::make('what_to_prepare')
-                    ->hidden(fn (Get $get): bool => ! $get('override_what_to_prepare'))
-                    ->required(fn (Get $get): bool => $get('override_what_to_prepare'))
-                    ->columnSpanFull(),
+                        RichEditor::make('description_2')
+                            ->label(__('Secondary Description'))
+                            ->hidden(fn (Get $get): bool => ! $get('override_description_2'))
+                            ->required(fn (Get $get): bool => $get('override_description_2'))
+                            ->columnSpanFull(),
+                    ]),
 
-                Toggle::make('override_description_1')
-                    ->live(),
+                Section::make('Event Video')
+                    ->description('Optionally replace the default event video.')
+                    ->collapsible()
+                    ->collapsed()
+                    ->schema([
+                        Toggle::make('override_video')
+                            ->label(__('Use Custom Video'))
+                            ->live(),
 
-                RichEditor::make('description_1')
-                    ->hidden(fn (Get $get): bool => ! $get('override_description_1'))
-                    ->required(fn (Get $get): bool => $get('override_description_1'))
-                    ->columnSpanFull(),
-
-                Toggle::make('override_description_2')
-                    ->live(),
-
-                RichEditor::make('description_2')
-                    ->hidden(fn (Get $get): bool => ! $get('override_description_2'))
-                    ->required(fn (Get $get): bool => $get('override_description_2'))
-                    ->columnSpanFull(),
-
-                Toggle::make('override_video')
-                    ->live(),
-
-                SpatieMediaLibraryFileUpload::make('video')
-                    ->hidden(fn (Get $get): bool => ! $get('override_video'))
-                    ->required(fn (Get $get): bool => $get('override_video'))
-                    ->collection('video')
-                    ->acceptedFileTypes(['video/*']),
+                        SpatieMediaLibraryFileUpload::make('video')
+                            ->label(__('Event Video'))
+                            ->hidden(fn (Get $get): bool => ! $get('override_video'))
+                            ->required(fn (Get $get): bool => $get('override_video'))
+                            ->collection('video')
+                            ->acceptedFileTypes(['video/*']),
+                    ]),
             ]);
     }
 
@@ -493,7 +624,7 @@ class EventResource extends Resource
 
     protected static function normalizeIdrAmount(mixed $state): ?string
     {
-        if (blank($state)) {
+        if ($state === null || $state === '') {
             return null;
         }
 

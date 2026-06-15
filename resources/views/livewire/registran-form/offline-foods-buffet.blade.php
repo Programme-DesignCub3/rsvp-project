@@ -4,7 +4,7 @@
 @else
     @foreach ($this->offline_foods as $key => $item)
         <div class="flex w-full items-center gap-x-4 border border-black p-2 font-extrabold disabled:bg-gray-500">
-            <input id="food-{{ $key }}" type="checkbox" value="{{ $item['food'] }}" wire:model="food" />
+            <input id="food-{{ $key }}" type="checkbox" value="{{ $item['food'] }}" wire:model.live="food" />
             <label class="flex-grow" for="food-{{ $key }}">{{ $item['food'] }}</label>
         </div>
     @endforeach

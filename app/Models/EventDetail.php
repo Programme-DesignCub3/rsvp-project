@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Casts\TimeCast;
 use App\Enums\FoodType;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\MediaLibrary\HasMedia;
@@ -14,12 +15,19 @@ class EventDetail extends Model implements HasMedia
     use HasFactory,
         InteractsWithMedia;
 
+    public const DEFAULT_REGISTRATION_PRICE_TYPE = '__default__';
+
     /**
      * The attributes that aren't mass assignable.
      *
      * @var array
      */
     protected $guarded = ['id'];
+
+    public function isFillable($key): bool
+    {
+        return $key === 'default_registration_fee' || parent::isFillable($key);
+    }
 
     /**
      * The attributes that should be cast to native types.
@@ -31,7 +39,6 @@ class EventDetail extends Model implements HasMedia
         'online_visitor_type_list' => 'array',
         'offline_visitor_type_list' => 'array',
         'excluded_payment_list' => 'array',
-        'registration_payment_prices' => 'array',
         'show_invoice_upload' => 'boolean',
         'food_type' => FoodType::class,
         // 'online_time' => TimeCast::class,
@@ -46,7 +53,114 @@ class EventDetail extends Model implements HasMedia
     protected $appends = [
         'description',
         'clean_description',
+        'default_registration_fee',
     ];
+
+    /**
+     * Return visitor-type overrides while hiding the internal default fee entry.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getRegistrationPaymentPricesAttribute(mixed $value): array
+    {
+        return array_values(array_filter(
+            $this->decodeRegistrationPaymentPrices($value),
+            fn (array $price): bool => ($price['visitor_type'] ?? null) !== self::DEFAULT_REGISTRATION_PRICE_TYPE
+        ));
+    }
+
+    /**
+     * Store visitor-type overrides without losing the internal default fee entry.
+     *
+     * @param  array<int, array<string, mixed>>|string|null  $value
+     */
+    public function setRegistrationPaymentPricesAttribute(array|string|null $value): void
+    {
+        $prices = array_values(array_filter(
+            $this->decodeRegistrationPaymentPrices($value),
+            fn (array $price): bool => ($price['visitor_type'] ?? null) !== self::DEFAULT_REGISTRATION_PRICE_TYPE
+        ));
+        $defaultFee = $this->defaultRegistrationFeeFromRawPrices();
+
+        if ($defaultFee !== null) {
+            $prices[] = $this->defaultRegistrationFeeEntry($defaultFee);
+        }
+
+        $this->attributes['registration_payment_prices'] = json_encode($prices);
+    }
+
+    /**
+     * Return the default registration fee stored inside registration payment prices.
+     */
+    protected function defaultRegistrationFee(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?int => $this->defaultRegistrationFeeFromRawPrices(),
+            set: function (mixed $value): array {
+                $prices = array_values(array_filter(
+                    $this->rawRegistrationPaymentPrices(),
+                    fn (array $price): bool => ($price['visitor_type'] ?? null) !== self::DEFAULT_REGISTRATION_PRICE_TYPE
+                ));
+
+                if ($value !== null && $value !== '') {
+                    $prices[] = $this->defaultRegistrationFeeEntry((int) $value);
+                }
+
+                return ['registration_payment_prices' => json_encode($prices)];
+            }
+        );
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function rawRegistrationPaymentPrices(): array
+    {
+        return $this->decodeRegistrationPaymentPrices(
+            $this->attributes['registration_payment_prices'] ?? null
+        );
+    }
+
+    protected function defaultRegistrationFeeFromRawPrices(): ?int
+    {
+        foreach ($this->rawRegistrationPaymentPrices() as $price) {
+            if (($price['visitor_type'] ?? null) === self::DEFAULT_REGISTRATION_PRICE_TYPE) {
+                return isset($price['price']) ? (int) $price['price'] : null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function decodeRegistrationPaymentPrices(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (! is_string($value) || $value === '') {
+            return [];
+        }
+
+        $decodedValue = json_decode($value, true);
+
+        return is_array($decodedValue) ? $decodedValue : [];
+    }
+
+    /**
+     * @return array{visitor_type: string, price: int, label: null}
+     */
+    protected function defaultRegistrationFeeEntry(int $fee): array
+    {
+        return [
+            'visitor_type' => self::DEFAULT_REGISTRATION_PRICE_TYPE,
+            'price' => $fee,
+            'label' => null,
+        ];
+    }
 
     public function event()
     {
