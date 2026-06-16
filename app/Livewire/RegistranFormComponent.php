@@ -437,6 +437,34 @@ class RegistranFormComponent extends Component
     }
 
     /**
+     * Group payment rows by category so repeated labels only appear once.
+     *
+     * @return array<int, array{label: string, items: array<int, array{description: string|null, amount: int, amount_label: string}>}>
+     */
+    #[Computed]
+    public function paymentBreakdownGroups(): array
+    {
+        $groups = [];
+
+        foreach ($this->paymentBreakdown() as $paymentItem) {
+            $label = $paymentItem['label'];
+
+            $groups[$label] ??= [
+                'label' => $label,
+                'items' => [],
+            ];
+
+            $groups[$label]['items'][] = [
+                'description' => $paymentItem['description'],
+                'amount' => $paymentItem['amount'],
+                'amount_label' => $paymentItem['amount_label'],
+            ];
+        }
+
+        return array_values($groups);
+    }
+
+    /**
      * Return the selected fixed food package label for payment detail.
      */
     #[Computed]

@@ -292,7 +292,7 @@ class RegistranFormComponentTest extends TestCase
             'food_type' => FoodType::BUFFET,
             'offline_foods' => [
                 ['food' => 'Nasi Goreng', 'price' => '25.000'],
-                ['food' => 'Sate Ayam', 'price' => null],
+                ['food' => 'Sate Ayam', 'price' => '30000'],
                 ['food' => 'Dessert', 'price' => '15000'],
             ],
         ]);
@@ -302,7 +302,7 @@ class RegistranFormComponentTest extends TestCase
             'event' => $event,
         ])->set('food', ['Nasi Goreng', 'Sate Ayam']);
 
-        $this->assertSame('IDR 25.000', $component->instance()->paymentAmountLabel());
+        $this->assertSame('IDR 55.000', $component->instance()->paymentAmountLabel());
         $this->assertSame([
             [
                 'label' => 'Food item',
@@ -310,7 +310,30 @@ class RegistranFormComponentTest extends TestCase
                 'amount' => 25000,
                 'amount_label' => 'IDR 25.000',
             ],
+            [
+                'label' => 'Food item',
+                'description' => 'Sate Ayam',
+                'amount' => 30000,
+                'amount_label' => 'IDR 30.000',
+            ],
         ], $component->instance()->paymentBreakdown());
+        $this->assertSame([
+            [
+                'label' => 'Food item',
+                'items' => [
+                    [
+                        'description' => 'Nasi Goreng',
+                        'amount' => 25000,
+                        'amount_label' => 'IDR 25.000',
+                    ],
+                    [
+                        'description' => 'Sate Ayam',
+                        'amount' => 30000,
+                        'amount_label' => 'IDR 30.000',
+                    ],
+                ],
+            ],
+        ], $component->instance()->paymentBreakdownGroups());
     }
 
     public function test_it_adds_optional_ala_carte_package_price(): void

@@ -4,8 +4,16 @@
     </strong>
 </p>
 
+<div class="mb-4 rounded-lg border border-black/10 bg-white/80 p-3 text-sm font-semibold text-black">
+    @if ($this->paymentAmountLabel)
+        Payment detail will update automatically when you change visitor type or food selection.
+    @else
+        Payment detail will appear after you select visitor type or food selection.
+    @endif
+</div>
+
 @if ($this->paymentAmountLabel)
-    <div class="rounded-lg border border-bni-gold-dark bg-bni-gold p-4 text-black">
+    <div class="mb-4 rounded-lg border border-bni-gold-dark bg-bni-gold p-4 text-black">
         <div class="flex items-start justify-between gap-4">
             <div>
                 <p class="text-sm font-semibold uppercase">Payment detail</p>
@@ -16,16 +24,22 @@
             <p class="whitespace-nowrap text-lg font-extrabold">{{ $this->paymentAmountLabel }}</p>
         </div>
 
-        <div class="mt-3 space-y-2 border-t border-black/20 pt-3">
-            @foreach ($this->paymentBreakdown as $paymentItem)
-                <div class="flex items-start justify-between gap-3 text-sm" wire:key="payment-item-{{ $loop->index }}">
-                    <div>
-                        <p class="font-bold">{{ $paymentItem['label'] }}</p>
-                        @if ($paymentItem['description'])
-                            <p class="text-xs font-semibold">{{ $paymentItem['description'] }}</p>
-                        @endif
+        <div class="mt-3 space-y-3 border-t border-black/20 pt-3">
+            @foreach ($this->paymentBreakdownGroups as $paymentGroup)
+                <div class="space-y-1 text-sm" wire:key="payment-group-{{ $loop->index }}">
+                    <p class="font-bold">{{ $paymentGroup['label'] }}</p>
+
+                    <div class="space-y-1">
+                        @foreach ($paymentGroup['items'] as $paymentItem)
+                            <div class="flex items-start justify-between gap-3"
+                                wire:key="payment-item-{{ $loop->parent->index }}-{{ $loop->index }}">
+                                @if ($paymentItem['description'])
+                                    <p class="text-xs font-semibold">{{ $paymentItem['description'] }}</p>
+                                @endif
+                                <p class="whitespace-nowrap font-extrabold">{{ $paymentItem['amount_label'] }}</p>
+                            </div>
+                        @endforeach
                     </div>
-                    <p class="whitespace-nowrap font-extrabold">{{ $paymentItem['amount_label'] }}</p>
                 </div>
             @endforeach
         </div>
