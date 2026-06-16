@@ -263,11 +263,20 @@ class RegistranFormComponent extends Component
 
     /**
      * Load visible members for the searchable Magnitude member dropdown.
+     *
+     * @return Collection<int, Member>|null
      */
     #[Computed]
     public function allMember(): ?Collection
     {
-        return $this->isVisitorTypeMagnitude() ? Member::where('hide', false)->orderBy('name')->get() : null;
+        if (! $this->isVisitorTypeMagnitude()) {
+            return null;
+        }
+
+        return Member::query()
+            ->where('hide', false)
+            ->orderBy('name')
+            ->get();
     }
 
     /**
