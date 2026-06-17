@@ -97,6 +97,7 @@ class RegistranFormComponent extends Component
         }
 
         $this->updateVisitorType();
+        $this->syncDefaultFoodSelection();
     }
 
     /**
@@ -106,6 +107,7 @@ class RegistranFormComponent extends Component
     {
         $this->resetVisitorIdentityFields();
         $this->syncInvitedByAvailability();
+        $this->syncDefaultFoodSelection();
     }
 
     /**
@@ -136,6 +138,7 @@ class RegistranFormComponent extends Component
 
         if ($this->event->checkable_one) {
             $this->visitor_type = $this->uniqueVisitorTypes([...$onlineVisitorTypes, ...$offlineVisitorTypes]);
+            $this->syncDefaultFoodSelection();
 
             return;
         }
@@ -150,6 +153,8 @@ class RegistranFormComponent extends Component
         if (! in_array($this->selectedVisitorType(), $this->visitor_type, true)) {
             $this->type = '';
         }
+
+        $this->syncDefaultFoodSelection();
     }
 
     /**
@@ -164,6 +169,80 @@ class RegistranFormComponent extends Component
         }
 
         $this->food = array_values(array_diff($this->food, [$food]));
+    }
+
+    /**
+     * Auto-select food when a configured food type only has one valid choice.
+     */
+    protected function syncDefaultFoodSelection(): void
+    {
+        if (! $this->isOfflineSelected() || $this->offline_foods === []) {
+            return;
+        }
+
+        match ($this->event->detail->food_type) {
+            FoodType::BUFFET => $this->syncDefaultBuffetFoodSelection(),
+            FoodType::ALA_CARTE => $this->syncDefaultAlaCarteFoodSelection(),
+            FoodType::FIXED => $this->syncDefaultFixedFoodSelection(),
+            default => null,
+        };
+    }
+
+    /**
+     * Store the only buffet item as an array selection.
+     */
+    protected function syncDefaultBuffetFoodSelection(): void
+    {
+        if (count($this->offline_foods) !== 1) {
+            return;
+        }
+
+        $food = $this->offline_foods[0]['food'] ?? null;
+
+        if (is_string($food) && filled($food)) {
+            $this->food = [$food];
+        }
+    }
+
+    /**
+     * Store the only ala carte food and drink options in the nested food state.
+     */
+    protected function syncDefaultAlaCarteFoodSelection(): void
+    {
+        $foodConfiguration = $this->offline_foods[0] ?? null;
+
+        if (! is_array($foodConfiguration)) {
+            return;
+        }
+
+        foreach (['food', 'drink'] as $key) {
+            $options = $this->alaCarteOptions($key);
+            $optionNames = array_column($options, 'name');
+
+            if (count($optionNames) === 1) {
+                $this->food[$key] = reset($optionNames);
+
+                continue;
+            }
+
+            if (isset($this->food[$key]) && ! in_array($this->food[$key], $optionNames, true)) {
+                unset($this->food[$key]);
+            }
+        }
+    }
+
+    /**
+     * Store fixed-menu values after visitor type selects the matching package.
+     */
+    protected function syncDefaultFixedFoodSelection(): void
+    {
+        $selectedFixedMenu = $this->selectedFixedMenu();
+
+        if ($selectedFixedMenu === null) {
+            return;
+        }
+
+        $this->syncFixedFoodSelection($selectedFixedMenu);
     }
 
     /**
@@ -336,6 +415,46 @@ class RegistranFormComponent extends Component
     }
 
     /**
+     * Return ala carte food choices normalized from old string options or new priced options.
+     *
+     * @return array<int, array{name: string, price: mixed, has_item_price: bool, is_itemized: bool}>
+     */
+    #[Computed]
+    public function alaCarteFoodOptions(): array
+    {
+        return $this->alaCarteOptions('food');
+    }
+
+    /**
+     * Return ala carte drink choices normalized from old string options or new priced options.
+     *
+     * @return array<int, array{name: string, price: mixed, has_item_price: bool, is_itemized: bool}>
+     */
+    #[Computed]
+    public function alaCarteDrinkOptions(): array
+    {
+        return $this->alaCarteOptions('drink');
+    }
+
+    /**
+     * Return a public food option label with an optional IDR amount.
+     */
+    public function foodOptionLabel(?string $name, mixed $price): string
+    {
+        if (! is_string($name) || blank($name)) {
+            return '';
+        }
+
+        $normalizedPrice = $this->normalizePaymentAmount($price);
+
+        if ($normalizedPrice === null || $normalizedPrice === 0) {
+            return $name;
+        }
+
+        return $name.' - IDR '.number_format($normalizedPrice, 0, ',', '.');
+    }
+
+    /**
      * Determine whether this visitor type is required to upload payment proof.
      */
     #[Computed]
@@ -383,6 +502,10 @@ class RegistranFormComponent extends Component
             return null;
         }
 
+        if (in_array($this->type, $this->event->detail->excluded_payment_list ?? [], true)) {
+            return null;
+        }
+
         foreach ($this->event->detail->registration_payment_prices ?? [] as $paymentPrice) {
             if (($paymentPrice['visitor_type'] ?? null) === $this->type) {
                 return $paymentPrice;
@@ -396,7 +519,10 @@ class RegistranFormComponent extends Component
             ];
         }
 
-        return null;
+        return [
+            'price' => 0,
+            'label' => null,
+        ];
     }
 
     /**
@@ -411,7 +537,7 @@ class RegistranFormComponent extends Component
     /**
      * Return detailed payment rows used by the proof upload summary.
      *
-     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string}>
+     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string|null}>
      */
     #[Computed]
     public function paymentBreakdown(): array
@@ -439,7 +565,7 @@ class RegistranFormComponent extends Component
     /**
      * Group payment rows by category so repeated labels only appear once.
      *
-     * @return array<int, array{label: string, items: array<int, array{description: string|null, amount: int, amount_label: string}>}>
+     * @return array<int, array{label: string, items: array<int, array{description: string|null, amount: int, amount_label: string|null}>}>
      */
     #[Computed]
     public function paymentBreakdownGroups(): array
@@ -874,29 +1000,36 @@ class RegistranFormComponent extends Component
 
     /**
      * Build a single payment row when a usable amount exists.
+     * Food rows can opt into zero-value rows without displaying a free amount label.
      *
-     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string}>
+     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string|null}>
      */
-    protected function paymentBreakdownLine(string $label, ?string $description, mixed $amount): array
+    protected function paymentBreakdownLine(string $label, ?string $description, mixed $amount, bool $showBlankAmountAsFree = false, bool $hideFreeAmountLabel = false): array
     {
         $normalizedAmount = $this->normalizePaymentAmount($amount);
 
         if ($normalizedAmount === null) {
-            return [];
+            if (! $showBlankAmountAsFree) {
+                return [];
+            }
+
+            $normalizedAmount = 0;
         }
 
         return [[
             'label' => $label,
             'description' => $description,
             'amount' => $normalizedAmount,
-            'amount_label' => $this->formatPaymentAmount($normalizedAmount),
+            'amount_label' => $hideFreeAmountLabel && $normalizedAmount === 0
+                ? null
+                : $this->formatPaymentAmount($normalizedAmount),
         ]];
     }
 
     /**
      * Build optional food payment rows for the configured food type.
      *
-     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string}>
+     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string|null}>
      */
     protected function foodPaymentBreakdown(): array
     {
@@ -909,9 +1042,9 @@ class RegistranFormComponent extends Component
     }
 
     /**
-     * Return one payment row for each selected buffet item with a configured price.
+     * Return one payment row for each selected buffet item, including free items.
      *
-     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string}>
+     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string|null}>
      */
     protected function buffetPaymentBreakdown(): array
     {
@@ -927,7 +1060,7 @@ class RegistranFormComponent extends Component
 
             $paymentBreakdown = [
                 ...$paymentBreakdown,
-                ...$this->paymentBreakdownLine('Food item', $foodName, $foodItem['price'] ?? null),
+                ...$this->paymentBreakdownLine('Food item', $foodName, $foodItem['price'] ?? null, true, true),
             ];
         }
 
@@ -935,9 +1068,9 @@ class RegistranFormComponent extends Component
     }
 
     /**
-     * Return the optional package price for an ala carte food and drink selection.
+     * Return ala carte payment rows using item prices when present, otherwise package fallback.
      *
-     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string}>
+     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string|null}>
      */
     protected function alaCartePaymentBreakdown(): array
     {
@@ -948,17 +1081,169 @@ class RegistranFormComponent extends Component
             return [];
         }
 
-        return $this->paymentBreakdownLine(
-            'Food package',
-            $selectionLabel,
-            $foodConfiguration['price'] ?? null
-        );
+        if (! $this->shouldUseItemizedAlaCartePrices($foodConfiguration)) {
+            return $this->paymentBreakdownLine(
+                'Food package',
+                $selectionLabel,
+                $foodConfiguration['price'] ?? null,
+                true,
+                true
+            );
+        }
+
+        $paymentBreakdown = [];
+
+        foreach ([
+            'food' => 'Food item',
+            'drink' => 'Drink item',
+        ] as $key => $label) {
+            $selectedOption = $this->selectedAlaCarteOption($key);
+
+            if ($selectedOption === null) {
+                continue;
+            }
+
+            $paymentBreakdown = [
+                ...$paymentBreakdown,
+                ...$this->paymentBreakdownLine(
+                    $label,
+                    $selectedOption['name'],
+                    $selectedOption['price'],
+                    true,
+                    true
+                ),
+            ];
+        }
+
+        return $paymentBreakdown;
+    }
+
+    /**
+     * Determine whether selected ala carte items should be priced separately.
+     *
+     * @param  array<string, mixed>  $foodConfiguration
+     */
+    protected function shouldUseItemizedAlaCartePrices(array $foodConfiguration): bool
+    {
+        $hasItemizedOptions = false;
+
+        foreach (['food', 'drink'] as $key) {
+            foreach ($this->alaCarteOptions($key) as $option) {
+                $hasItemizedOptions = $hasItemizedOptions || $option['is_itemized'];
+
+                if ($option['has_item_price']) {
+                    return true;
+                }
+            }
+        }
+
+        return $hasItemizedOptions && $this->normalizePaymentAmount($foodConfiguration['price'] ?? null) === null;
+    }
+
+    /**
+     * Return the selected food or drink option with its optional price.
+     *
+     * @return array{name: string, price: mixed, has_item_price: bool, is_itemized: bool}|null
+     */
+    protected function selectedAlaCarteOption(string $key): ?array
+    {
+        $selectedName = $this->food[$key] ?? null;
+
+        if (! is_string($selectedName) || blank($selectedName)) {
+            return null;
+        }
+
+        foreach ($this->alaCarteOptions($key) as $option) {
+            if ($option['name'] === $selectedName) {
+                return $option;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Return normalized ala carte choices for the requested key.
+     *
+     * @return array<int, array{name: string, price: mixed, has_item_price: bool, is_itemized: bool}>
+     */
+    protected function alaCarteOptions(string $key): array
+    {
+        $foodConfiguration = $this->offline_foods[0] ?? null;
+
+        if (! is_array($foodConfiguration)) {
+            return [];
+        }
+
+        $options = $foodConfiguration[$key] ?? [];
+
+        if (! is_array($options)) {
+            return [];
+        }
+
+        return $this->uniqueAlaCarteOptions(array_values(array_filter(array_map(
+            fn (mixed $option): ?array => $this->normalizeAlaCarteOption($option),
+            $options
+        ))));
+    }
+
+    /**
+     * Normalize old string options and new priced options to one frontend shape.
+     *
+     * @return array{name: string, price: mixed, has_item_price: bool, is_itemized: bool}|null
+     */
+    protected function normalizeAlaCarteOption(mixed $option): ?array
+    {
+        if (is_string($option)) {
+            return filled($option) ? [
+                'name' => $option,
+                'price' => null,
+                'has_item_price' => false,
+                'is_itemized' => false,
+            ] : null;
+        }
+
+        if (! is_array($option)) {
+            return null;
+        }
+
+        $name = $option['name'] ?? $option['food'] ?? $option['drink'] ?? null;
+
+        if (! is_string($name) || blank($name)) {
+            return null;
+        }
+
+        $price = $option['price'] ?? null;
+
+        return [
+            'name' => $name,
+            'price' => $price,
+            'has_item_price' => $this->normalizePaymentAmount($price) !== null,
+            'is_itemized' => true,
+        ];
+    }
+
+    /**
+     * Deduplicate select options by name because the public dropdown value is the item name.
+     *
+     * @param  array<int, array{name: string, price: mixed, has_item_price: bool, is_itemized: bool}>  $options
+     * @return array<int, array{name: string, price: mixed, has_item_price: bool, is_itemized: bool}>
+     */
+    protected function uniqueAlaCarteOptions(array $options): array
+    {
+        $uniqueOptions = [];
+
+        foreach ($options as $option) {
+            $uniqueOptions[mb_strtolower(trim($option['name']))] = $option;
+        }
+
+        return array_values($uniqueOptions);
     }
 
     /**
      * Return the optional fixed package food price.
      *
-     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string}>
+     * @return array<int, array{label: string, description: string|null, amount: int, amount_label: string|null}>
      */
     protected function fixedFoodPaymentBreakdown(): array
     {
@@ -971,7 +1256,9 @@ class RegistranFormComponent extends Component
         return $this->paymentBreakdownLine(
             'Food package',
             $this->fixedFoodPackageLabel(),
-            $selectedFixedMenu['price'] ?? null
+            $selectedFixedMenu['price'] ?? null,
+            true,
+            true
         );
     }
 

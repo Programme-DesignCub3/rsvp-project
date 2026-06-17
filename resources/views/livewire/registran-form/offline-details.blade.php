@@ -18,7 +18,7 @@
         @include('livewire.registran-form.offline-foods')
     @endif
 
-    @if ($this->event->detail->show_invoice_upload && $this->userShouldUploadInvoice)
+    @if ($this->event->detail->show_invoice_upload && ($this->userShouldUploadInvoice || $this->paymentAmountLabel))
         @include('livewire.registran-form.invoice-upload')
     @endif
 </div>

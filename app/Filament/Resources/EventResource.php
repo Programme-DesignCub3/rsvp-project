@@ -359,8 +359,9 @@ class EventResource extends Resource
                             ->columnSpanFull(),
 
                         self::idrPriceInput('default_registration_fee', __('Default Registration Fee'))
-                            ->helperText('Used when the selected visitor type has no override below. Enter 0 for free; leave empty for no default fee.')
+                            ->helperText('Required when payment proof is enabled. Enter 0 for free.')
                             ->hidden(fn (Get $get): bool => ! $get('show_invoice_upload'))
+                            ->required(fn (Get $get): bool => $get('show_invoice_upload'))
                             ->columnSpanFull(),
 
                         self::registrationPaymentPricesRepeater(),
@@ -485,20 +486,10 @@ class EventResource extends Resource
             ],
 
             FoodType::ALA_CARTE => [
-                Repeater::make('food')
-                    ->simple(
-                        TextInput::make('food')
-                            ->label(__('Food'))
-                            ->required()
-                    ),
-                Repeater::make('drink')
-                    ->simple(
-                        TextInput::make('drink')
-                            ->label(__('Drinks'))
-                            ->required()
-                    ),
-                self::idrPriceInput('price', __('Package Price'))
-                    ->helperText('Optional. Applies to the selected food and drink combination.')
+                self::alaCarteChoiceRepeater('food', __('Food Choices'), __('Food')),
+                self::alaCarteChoiceRepeater('drink', __('Drink Choices'), __('Drink')),
+                self::idrPriceInput('price', __('Fallback Package Price'))
+                    ->helperText('Optional. Used by older events or when no item-specific food/drink prices are set.')
                     ->columnSpanFull(),
             ],
 
@@ -633,6 +624,32 @@ class EventResource extends Resource
             ->prefix('IDR');
     }
 
+    protected static function alaCarteChoiceRepeater(string $name, string $label, string $itemLabel): Repeater
+    {
+        return Repeater::make($name)
+            ->label($label)
+            ->helperText('Price is optional. Empty price keeps the selected item visible without adding an amount.')
+            ->addActionLabel(__('Add Choice'))
+            ->collapsible()
+            ->itemLabel(fn (array $state): ?string => $state['name'] ?? null)
+            ->columns(2)
+            ->schema([
+                TextInput::make('name')
+                    ->label($itemLabel)
+                    ->required()
+                    ->columnSpan(1),
+
+                self::idrPriceInput('price', __('Price'))
+                    ->columnSpan(1),
+            ])
+            ->afterStateHydrated(function (Repeater $component, ?array $state): void {
+                if (self::shouldNormalizeAlaCarteOptionsForAdmin($state) || self::hasDuplicateAlaCarteOptions($state)) {
+                    $component->state(self::normalizeAlaCarteOptionsForAdmin($state));
+                }
+            })
+            ->dehydrateStateUsing(fn (?array $state): array => self::normalizeAlaCarteOptionsForStorage($state));
+    }
+
     protected static function idrMoneyMask(): RawJs
     {
         return RawJs::make('$money($input, ",", ".", 0)');
@@ -673,6 +690,135 @@ class EventResource extends Resource
         $amount = self::normalizeIdrAmount($state);
 
         return $amount === null ? null : number_format((int) $amount, 0, ',', '.');
+    }
+
+    /**
+     * Only rewrite ala carte state when it comes from the old flat string format.
+     *
+     * @param  array<int, mixed>|null  $state
+     */
+    protected static function shouldNormalizeAlaCarteOptionsForAdmin(?array $state): bool
+    {
+        foreach ($state ?? [] as $option) {
+            if (is_string($option)) {
+                return true;
+            }
+
+            if (is_array($option) && ! array_key_exists('name', $option)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<int, mixed>|null  $state
+     */
+    protected static function hasDuplicateAlaCarteOptions(?array $state): bool
+    {
+        $seen = [];
+
+        foreach ($state ?? [] as $option) {
+            $normalizedOption = self::normalizeAlaCarteOptionForAdmin($option);
+
+            if ($normalizedOption === null) {
+                continue;
+            }
+
+            $key = mb_strtolower(trim($normalizedOption['name']));
+
+            if (isset($seen[$key])) {
+                return true;
+            }
+
+            $seen[$key] = true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<int, mixed>|null  $state
+     * @return array<int, array{name: string, price: string|null}>
+     */
+    protected static function normalizeAlaCarteOptionsForAdmin(?array $state): array
+    {
+        return self::uniqueAlaCarteOptions(array_values(array_filter(array_map(
+            fn (mixed $option): ?array => self::normalizeAlaCarteOptionForAdmin($option),
+            $state ?? []
+        ))));
+    }
+
+    /**
+     * @return array{name: string, price: string|null}|null
+     */
+    protected static function normalizeAlaCarteOptionForAdmin(mixed $option): ?array
+    {
+        if (is_string($option)) {
+            return filled($option) ? [
+                'name' => $option,
+                'price' => null,
+            ] : null;
+        }
+
+        if (! is_array($option)) {
+            return null;
+        }
+
+        $name = $option['name'] ?? $option['food'] ?? $option['drink'] ?? null;
+
+        if (! is_string($name) || blank($name)) {
+            return null;
+        }
+
+        return [
+            'name' => $name,
+            'price' => self::formatIdrAmountForAdmin($option['price'] ?? null),
+        ];
+    }
+
+    /**
+     * @param  array<int, mixed>|null  $state
+     * @return array<int, array{name: string, price: string|null}>
+     */
+    protected static function normalizeAlaCarteOptionsForStorage(?array $state): array
+    {
+        return self::uniqueAlaCarteOptions(array_values(array_filter(array_map(
+            function (mixed $option): ?array {
+                if (! is_array($option)) {
+                    return null;
+                }
+
+                $name = $option['name'] ?? null;
+
+                if (! is_string($name) || blank($name)) {
+                    return null;
+                }
+
+                return [
+                    'name' => $name,
+                    'price' => self::normalizeIdrAmount($option['price'] ?? null),
+                ];
+            },
+            $state ?? []
+        ))));
+    }
+
+    /**
+     * @param  array<int, array{name: string, price: string|null}>  $options
+     * @return array<int, array{name: string, price: string|null}>
+     */
+    protected static function uniqueAlaCarteOptions(array $options): array
+    {
+        $uniqueOptions = [];
+
+        foreach ($options as $option) {
+            $key = mb_strtolower(trim($option['name']));
+            $uniqueOptions[$key] = $option;
+        }
+
+        return array_values($uniqueOptions);
     }
 
     protected static function maxFoodItems(Get $get): int

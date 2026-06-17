@@ -90,6 +90,31 @@ class EventDetail extends Model implements HasMedia
     }
 
     /**
+     * Store food configuration without duplicate ala carte food or drink choices.
+     *
+     * @param  array<int, array<string, mixed>>|string|null  $value
+     */
+    public function setOfflineFoodsAttribute(array|string|null $value): void
+    {
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+
+        if (! is_array($value)) {
+            $this->attributes['offline_foods'] = null;
+
+            return;
+        }
+
+        $this->attributes['offline_foods'] = json_encode(array_map(
+            fn (mixed $foodGroup): mixed => is_array($foodGroup)
+                ? $this->normalizeAlaCarteFoodGroup($foodGroup)
+                : $foodGroup,
+            $value
+        ));
+    }
+
+    /**
      * Return the default registration fee stored inside registration payment prices.
      */
     protected function defaultRegistrationFee(): Attribute
@@ -130,6 +155,57 @@ class EventDetail extends Model implements HasMedia
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $foodGroup
+     * @return array<string, mixed>
+     */
+    protected function normalizeAlaCarteFoodGroup(array $foodGroup): array
+    {
+        foreach (['food', 'drink'] as $key) {
+            if (isset($foodGroup[$key]) && is_array($foodGroup[$key])) {
+                $foodGroup[$key] = $this->uniqueAlaCarteOptions($foodGroup[$key]);
+            }
+        }
+
+        return $foodGroup;
+    }
+
+    /**
+     * @param  array<int, mixed>  $options
+     * @return array<int, mixed>
+     */
+    protected function uniqueAlaCarteOptions(array $options): array
+    {
+        $uniqueOptions = [];
+
+        foreach ($options as $option) {
+            $name = $this->alaCarteOptionName($option);
+
+            if ($name === null) {
+                continue;
+            }
+
+            $uniqueOptions[mb_strtolower(trim($name))] = $option;
+        }
+
+        return array_values($uniqueOptions);
+    }
+
+    protected function alaCarteOptionName(mixed $option): ?string
+    {
+        if (is_string($option)) {
+            return filled($option) ? $option : null;
+        }
+
+        if (! is_array($option)) {
+            return null;
+        }
+
+        $name = $option['name'] ?? $option['food'] ?? $option['drink'] ?? null;
+
+        return is_string($name) && filled($name) ? $name : null;
     }
 
     /**
