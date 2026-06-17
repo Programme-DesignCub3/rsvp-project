@@ -103,6 +103,84 @@ class RegistranFormComponentTest extends TestCase
         Mail::assertSent(VisitorMail::class);
     }
 
+    public function test_required_ala_carte_food_cannot_be_skipped_when_drink_is_selected(): void
+    {
+        Mail::fake();
+
+        $event = $this->createEvent([
+            'session' => ['offline'],
+        ], [
+            'food_type' => FoodType::ALA_CARTE,
+            'food_required' => true,
+            'offline_foods' => [
+                [
+                    'food' => ['Nasi Goreng', 'Mie Goreng'],
+                    'drink' => ['Tea', 'Coffee'],
+                    'price' => '35000',
+                ],
+            ],
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('type', VisitorType::VISITOR->value)
+            ->set('name', 'New Visitor')
+            ->set('business', 'Consulting')
+            ->set('company', 'Acme')
+            ->set('phone', '08123456789')
+            ->set('email', 'new@example.com')
+            ->set('invited_by', 'A Member')
+            ->set('food.drink', 'Tea')
+            ->call('save')
+            ->assertHasErrors(['food.food' => 'required']);
+
+        $this->assertDatabaseMissing('visitors', [
+            'event_id' => $event->id,
+            'email' => 'new@example.com',
+        ]);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_required_buffet_food_cannot_be_skipped(): void
+    {
+        Mail::fake();
+
+        $event = $this->createEvent([
+            'session' => ['offline'],
+        ], [
+            'food_type' => FoodType::BUFFET,
+            'food_required' => true,
+            'offline_foods' => [
+                ['food' => 'Nasi Goreng', 'price' => '25000'],
+                ['food' => 'Sate Ayam', 'price' => '30000'],
+            ],
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('type', VisitorType::VISITOR->value)
+            ->set('name', 'New Visitor')
+            ->set('business', 'Consulting')
+            ->set('company', 'Acme')
+            ->set('phone', '08123456789')
+            ->set('email', 'new@example.com')
+            ->set('invited_by', 'A Member')
+            ->call('save')
+            ->assertHasErrors(['food' => 'required']);
+
+        $this->assertDatabaseMissing('visitors', [
+            'event_id' => $event->id,
+            'email' => 'new@example.com',
+        ]);
+
+        Mail::assertNothingSent();
+    }
+
     public function test_it_resolves_fixed_payment_price_from_selected_visitor_type(): void
     {
         $event = $this->createEvent([

@@ -9,6 +9,7 @@ use App\Models\Event;
 use App\Models\Member;
 use App\Models\Visitor;
 use App\Services\VisitorRegistrationService;
+use Closure;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Validation\Rule;
@@ -849,11 +850,111 @@ class RegistranFormComponent extends Component
      */
     protected function validateFoodSelection(): void
     {
+        match ($this->event->detail->food_type) {
+            FoodType::BUFFET => $this->validateBuffetFoodSelection(),
+            FoodType::ALA_CARTE => $this->validateAlaCarteFoodSelection(),
+            FoodType::FIXED => $this->validateFixedFoodSelection(),
+            default => $this->validateRequiredFoodSelection(),
+        };
+    }
+
+    /**
+     * Validate that at least one buffet option is selected.
+     */
+    protected function validateBuffetFoodSelection(): void
+    {
         $this->validate(
-            ['food' => ['required']],
-            ['food.required' => '* mandatory'],
+            [
+                'food' => ['required', 'array', 'min:1'],
+                'food.*' => ['required', 'string', Rule::in($this->buffetFoodOptionNames())],
+            ],
+            $this->foodValidationMessages(),
             ['food' => 'FOOD']
         );
+    }
+
+    /**
+     * Validate each configured ala carte group instead of only the parent array.
+     */
+    protected function validateAlaCarteFoodSelection(): void
+    {
+        $rules = [
+            'food' => ['required', 'array'],
+        ];
+
+        foreach (['food', 'drink'] as $key) {
+            $optionNames = array_column($this->alaCarteOptions($key), 'name');
+
+            if ($optionNames !== []) {
+                $rules["food.{$key}"] = ['required', 'string', Rule::in($optionNames)];
+            }
+        }
+
+        $this->validate(
+            $rules,
+            $this->foodValidationMessages(),
+            ['food' => 'FOOD']
+        );
+    }
+
+    /**
+     * Validate that the selected visitor type has a configured fixed menu.
+     */
+    protected function validateFixedFoodSelection(): void
+    {
+        $this->validate(
+            [
+                'food' => [
+                    function (string $attribute, mixed $value, Closure $fail): void {
+                        if ($this->selectedFixedMenu() === null) {
+                            $fail('* mandatory');
+                        }
+                    },
+                ],
+            ],
+            $this->foodValidationMessages(),
+            ['food' => 'FOOD']
+        );
+    }
+
+    /**
+     * Validate a generic required food selection.
+     */
+    protected function validateRequiredFoodSelection(): void
+    {
+        $this->validate(
+            ['food' => ['required']],
+            $this->foodValidationMessages(),
+            ['food' => 'FOOD']
+        );
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function foodValidationMessages(): array
+    {
+        return [
+            'food.required' => '* mandatory',
+            'food.array' => '* mandatory',
+            'food.min' => '* mandatory',
+            'food.*.required' => '* mandatory',
+            'food.*.string' => '* mandatory',
+            'food.*.in' => '* mandatory',
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function buffetFoodOptionNames(): array
+    {
+        return array_values(array_filter(array_map(
+            fn (mixed $foodItem): ?string => is_array($foodItem) && isset($foodItem['food']) && is_string($foodItem['food'])
+                ? $foodItem['food']
+                : null,
+            $this->offline_foods
+        )));
     }
 
     /**
