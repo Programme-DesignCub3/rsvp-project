@@ -1,11 +1,3 @@
-@if ($this->userShouldUploadInvoice)
-    <p class="font-semibold">Please transfer payment to <br>
-        <strong class="text-lg">
-            Bank Jago 101916230906 a/n Stefanny Liezal
-        </strong>
-    </p>
-@endif
-
 <div class="mb-4 rounded-lg border border-black/10 bg-white/80 p-3 text-sm font-semibold text-black">
     @if ($this->paymentAmountLabel)
         Payment detail will update automatically when you change visitor type or food selection.
@@ -53,27 +45,32 @@
 @endif
 
 @if ($this->userShouldUploadInvoice)
-    <div class="rounded-lg bg-gray-200 p-2">
-        <p class="mb-2">Sertakan Berita dengan format penulisan:
-            <strong>"Chapter/Visitor" + "Nama" @if ($this->event->slug == 'fun-bay-networking')
-                    + APR22
-                @endif </strong>
-        </p>
-        <p>Contoh:</p>
+    <p class="font-semibold">Please transfer payment to <br>
+        <strong class="text-lg">
+            Bank Jago 101916230906 a/n Stefanny Liezal
+        </strong>
+    </p>
 
-        @if ($this->event->slug == 'fun-bay-networking')
-            <ul class="list-inside list-disc pl-1 lg:pl-2">
-                <li class="font-semibold">Magnitude Deddy + APR22</li>
-                <li class="font-semibold">Altitude Edo + APR22</li>
-                <li class="font-semibold">Visitor Daniel + APR22</li>
-            </ul>
-        @else
-            <ul class="list-inside list-disc pl-1 lg:pl-2">
-                <li class="font-semibold">Magnitude Deddy</li>
-                <li class="font-semibold">Altitude Edo</li>
-                <li class="font-semibold">Visitor Daniel</li>
-            </ul>
-        @endif
+    <p class="mb-2">Sertakan Berita dengan format penulisan:
+        <strong>"Chapter/Visitor" + "Nama" @if ($this->event->slug == 'fun-bay-networking')
+                + APR22
+            @endif </strong>
+    </p>
+    <p>Contoh:</p>
+
+    @if ($this->event->slug == 'fun-bay-networking')
+        <ul class="list-inside list-disc pl-1 lg:pl-2">
+            <li class="font-semibold">Magnitude Deddy + APR22</li>
+            <li class="font-semibold">Altitude Edo + APR22</li>
+            <li class="font-semibold">Visitor Daniel + APR22</li>
+        </ul>
+    @else
+        <ul class="list-inside list-disc pl-1 lg:pl-2">
+            <li class="font-semibold">Magnitude Deddy</li>
+            <li class="font-semibold">Altitude Edo</li>
+            <li class="font-semibold">Visitor Daniel</li>
+        </ul>
+    @endif
     </div>
 
     <div class="form-group">
