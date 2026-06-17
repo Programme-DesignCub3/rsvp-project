@@ -71,7 +71,6 @@
             <li class="font-semibold">Visitor Daniel</li>
         </ul>
     @endif
-    </div>
 
     <div class="form-group">
         <label class="form-label text-black" for="payment">UPLOAD PROOF OF PAYMENT:</label>
