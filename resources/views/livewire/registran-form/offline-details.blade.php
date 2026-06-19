@@ -13,8 +13,13 @@
             {!! $this->event->detail->offline_address !!}
         </div>
     </div>
-
     @if (count($this->offline_foods))
+        @if ($this->event->slug == 'bni-hybrid-networking-meeting-23-juni-2026')
+            {{-- @if ($this->event->detail->slug == 'bni-hybrid-networking-meeting-23-juni-2026') --}}
+            <img src="{{ asset('hardcoded\bni-hybrid-networking-meeting-23-juni-2026/1.jpeg') }}" alt="">
+            <img src="{{ asset('hardcoded\bni-hybrid-networking-meeting-23-juni-2026/2.jpeg') }}" alt="">
+        @endif
+
         @include('livewire.registran-form.offline-foods')
     @endif
 
