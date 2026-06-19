@@ -1052,7 +1052,7 @@ class RegistranFormComponentTest extends TestCase
             ->assertSet('food.price', '150000');
     }
 
-    public function test_food_selection_controls_update_live(): void
+    public function test_food_selection_controls_update_on_change(): void
     {
         $buffetEvent = $this->createEvent([
             'slug' => 'buffet-event',
@@ -1068,7 +1068,8 @@ class RegistranFormComponentTest extends TestCase
         Livewire::test(RegistranFormComponent::class, [
             'slug' => $buffetEvent->slug,
             'event' => $buffetEvent,
-        ])->assertSeeHtml('wire:model.live="food"');
+        ])->assertSeeHtml('wire:model.change="food"')
+            ->assertSeeHtml('wire:key="buffet-food-');
 
         $alaCarteEvent = $this->createEvent([
             'slug' => 'ala-carte-event',
@@ -1088,8 +1089,10 @@ class RegistranFormComponentTest extends TestCase
             'slug' => $alaCarteEvent->slug,
             'event' => $alaCarteEvent,
         ])
-            ->assertSeeHtml('wire:model.live="food.food"')
-            ->assertSeeHtml('wire:model.live="food.drink"');
+            ->assertSeeHtml('wire:model.change="food.food"')
+            ->assertSeeHtml('wire:model.change="food.drink"')
+            ->assertSeeHtml('wire:key="ala-carte-food-control-')
+            ->assertSeeHtml('wire:key="ala-carte-drink-control-');
     }
 
     /**
