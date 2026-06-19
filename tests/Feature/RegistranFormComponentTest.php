@@ -54,6 +54,40 @@ class RegistranFormComponentTest extends TestCase
             ->assertSet('sessions', []);
     }
 
+    public function test_it_cannot_save_registration_without_selecting_a_session(): void
+    {
+        Mail::fake();
+
+        $event = $this->createEvent([
+            'checkable_one' => true,
+            'session' => ['online', 'offline'],
+        ], [
+            'show_invoice_upload' => false,
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('type', VisitorType::VISITOR->value)
+            ->set('name', 'New Visitor')
+            ->set('business', 'Consulting')
+            ->set('company', 'Acme')
+            ->set('phone', '08123456789')
+            ->set('email', 'new@example.com')
+            ->set('invited_by', 'A Member')
+            ->call('save')
+            ->assertHasErrors(['sessions' => 'required'])
+            ->assertSet('isSubmitted', false);
+
+        $this->assertDatabaseMissing('visitors', [
+            'event_id' => $event->id,
+            'email' => 'new@example.com',
+        ]);
+
+        Mail::assertNothingSent();
+    }
+
     public function test_it_saves_a_basic_visitor_registration(): void
     {
         Mail::fake();

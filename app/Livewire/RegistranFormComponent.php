@@ -269,6 +269,8 @@ class RegistranFormComponent extends Component
     public function rules(): array
     {
         $rules = [
+            'sessions' => ['required', 'array', 'min:1'],
+            'sessions.*' => ['required', Rule::in($this->availableSessionValues())],
             'name' => ['required'],
             'email' => [
                 Rule::unique('visitors', 'email')
@@ -301,7 +303,10 @@ class RegistranFormComponent extends Component
             'type.required' => '* mandatory',
             'type.enum' => '* mandatory',
             'sessions.required' => '* mandatory',
+            'sessions.array' => '* mandatory',
+            'sessions.min' => '* mandatory',
             'sessions.*' => '* mandatory',
+            'sessions.*.in' => '* mandatory',
             'name.required' => '* mandatory',
             'business.required' => '* mandatory',
             'company.required' => '* mandatory',
@@ -799,6 +804,16 @@ class RegistranFormComponent extends Component
         }
 
         return array_values($uniqueVisitorTypes);
+    }
+
+    /**
+     * Return event session values that visitors may submit.
+     *
+     * @return array<int, string>
+     */
+    protected function availableSessionValues(): array
+    {
+        return array_values(array_intersect($this->event->session ?? [], self::SELECTABLE_SESSIONS));
     }
 
     /**
