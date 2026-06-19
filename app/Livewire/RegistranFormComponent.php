@@ -120,6 +120,14 @@ class RegistranFormComponent extends Component
     }
 
     /**
+     * Refresh visitor type options after checkbox session bindings change.
+     */
+    public function updatedSessions(mixed $value = null, mixed $key = null): void
+    {
+        $this->updateVisitorType();
+    }
+
+    /**
      * Clear substitute details whenever the selected status is no longer substitute.
      */
     public function updatingStatus(mixed $value): void
@@ -134,22 +142,7 @@ class RegistranFormComponent extends Component
      */
     public function updateVisitorType(): void
     {
-        $offlineVisitorTypes = $this->visitorTypesForSession(self::OFFLINE_SESSION);
-        $onlineVisitorTypes = $this->visitorTypesForSession(self::ONLINE_SESSION);
-
-        if ($this->event->checkable_one) {
-            $this->visitor_type = $this->uniqueVisitorTypes([...$onlineVisitorTypes, ...$offlineVisitorTypes]);
-            $this->syncDefaultFoodSelection();
-
-            return;
-        }
-
-        $this->visitor_type = match (true) {
-            $this->isOfflineSelected() && $this->isOnlineSelected() => $this->uniqueVisitorTypes([...$onlineVisitorTypes, ...$offlineVisitorTypes]),
-            $this->isOnlineSelected() => $onlineVisitorTypes,
-            $this->isOfflineSelected() => $offlineVisitorTypes,
-            default => [],
-        };
+        $this->visitor_type = $this->availableVisitorTypesForSelection();
 
         if (! in_array($this->selectedVisitorType(), $this->visitor_type, true)) {
             $this->type = '';
@@ -273,13 +266,19 @@ class RegistranFormComponent extends Component
             'sessions.*' => ['required', Rule::in($this->availableSessionValues())],
             'name' => ['required'],
             'email' => [
+                'required',
+                'email',
                 Rule::unique('visitors', 'email')
                     ->where(fn (Builder $query): Builder => $query->where('event_id', $this->event->id)),
             ],
+            'type' => ['required', Rule::enum(VisitorType::class), Rule::in($this->availableVisitorTypeValues())],
         ];
 
         if ($this->isVisitorTypeMagnitude()) {
-            return $rules;
+            return [
+                ...$rules,
+                ...$this->magnitudeValidationRules(),
+            ];
         }
 
         return [
@@ -287,8 +286,7 @@ class RegistranFormComponent extends Component
             'business' => ['required'],
             'company' => ['required'],
             'phone' => ['required'],
-            'invited_by' => ['sometimes'],
-            'type' => ['required', Rule::enum(VisitorType::class)],
+            'invited_by' => [Rule::requiredIf($this->requiresInvitedBy())],
         ];
     }
 
@@ -302,6 +300,7 @@ class RegistranFormComponent extends Component
         return [
             'type.required' => '* mandatory',
             'type.enum' => '* mandatory',
+            'type.in' => '* mandatory',
             'sessions.required' => '* mandatory',
             'sessions.array' => '* mandatory',
             'sessions.min' => '* mandatory',
@@ -312,7 +311,11 @@ class RegistranFormComponent extends Component
             'company.required' => '* mandatory',
             'phone.required' => '* mandatory',
             'email.required' => '* mandatory',
+            'email.email' => '* mandatory',
             'invited_by.required' => '* mandatory',
+            'status.required' => '* mandatory',
+            'status.in' => '* mandatory',
+            'substituted_by.required' => '* mandatory',
             'food.*' => '* mandatory',
         ];
     }
@@ -814,6 +817,144 @@ class RegistranFormComponent extends Component
     protected function availableSessionValues(): array
     {
         return array_values(array_intersect($this->event->session ?? [], self::SELECTABLE_SESSIONS));
+    }
+
+    /**
+     * Return visitor types currently selectable for the chosen session state.
+     *
+     * @return array<int, VisitorType>
+     */
+    protected function availableVisitorTypesForSelection(): array
+    {
+        if ($this->event->checkable_one && $this->isEmptySessions()) {
+            return $this->visitorTypesForAvailableSessions();
+        }
+
+        $visitorTypes = [];
+
+        if ($this->isOnlineSelected()) {
+            $visitorTypes = [...$visitorTypes, ...$this->visitorTypesForSession(self::ONLINE_SESSION)];
+        }
+
+        if ($this->isOfflineSelected()) {
+            $visitorTypes = [...$visitorTypes, ...$this->visitorTypesForSession(self::OFFLINE_SESSION)];
+        }
+
+        return $this->uniqueVisitorTypes($visitorTypes);
+    }
+
+    /**
+     * Return visitor types from all sessions configured for the event.
+     *
+     * @return array<int, VisitorType>
+     */
+    protected function visitorTypesForAvailableSessions(): array
+    {
+        $visitorTypes = [];
+
+        foreach ($this->availableSessionValues() as $session) {
+            $visitorTypes = [...$visitorTypes, ...$this->visitorTypesForSession($session)];
+        }
+
+        return $this->uniqueVisitorTypes($visitorTypes);
+    }
+
+    /**
+     * Return visitor type values currently allowed for validation.
+     *
+     * @return array<int, string>
+     */
+    protected function availableVisitorTypeValues(): array
+    {
+        return array_map(
+            fn (VisitorType $visitorType): string => $visitorType->value,
+            $this->availableVisitorTypesForSelection()
+        );
+    }
+
+    /**
+     * Return extra validation rules for Magnitude member registrations.
+     *
+     * @return array<string, mixed>
+     */
+    protected function magnitudeValidationRules(): array
+    {
+        $rules = [
+            'name' => [
+                'required',
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    if (! $this->selectedVisibleMemberExists()) {
+                        $fail('* mandatory');
+                    }
+                },
+            ],
+        ];
+
+        if ($this->shouldRequireMagnitudeStatus()) {
+            $rules['status'] = ['required', Rule::in($this->availableStatusValues())];
+        }
+
+        if ($this->isSubstituteResponse()) {
+            $rules['substituted_by'] = ['required'];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Determine whether the selected Magnitude member exists in the visible member list.
+     */
+    protected function selectedVisibleMemberExists(): bool
+    {
+        return Member::query()
+            ->where('hide', false)
+            ->where('name', $this->name)
+            ->where('email', $this->email)
+            ->where('phone', $this->phone)
+            ->exists();
+    }
+
+    /**
+     * Determine whether visitor host details are required for this visitor type.
+     */
+    protected function requiresInvitedBy(): bool
+    {
+        return in_array(
+            $this->type,
+            [VisitorType::VISITOR->value, VisitorType::GUEST->value],
+            true
+        );
+    }
+
+    /**
+     * Determine whether Magnitude status is displayed and must be submitted.
+     */
+    protected function shouldRequireMagnitudeStatus(): bool
+    {
+        if (! $this->isVisitorTypeMagnitude()) {
+            return false;
+        }
+
+        if ($this->event->checkable && $this->event->checkable_one) {
+            return $this->isEmptySessions();
+        }
+
+        return $this->event->is_online_event
+            || $this->event->is_both_event
+            || ($this->event->is_offline_event && ! $this->isOfflineSelected());
+    }
+
+    /**
+     * Return the status values currently allowed for the selected session.
+     *
+     * @return array<int, string>
+     */
+    protected function availableStatusValues(): array
+    {
+        return array_map(
+            fn (VisitorStatusType $status): string => $status->value,
+            $this->getStatusType()
+        );
     }
 
     /**

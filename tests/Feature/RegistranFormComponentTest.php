@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Enums\FoodType;
+use App\Enums\VisitorStatusType;
 use App\Enums\VisitorType;
 use App\Filament\Resources\EventResource;
 use App\Livewire\RegistranFormComponent;
 use App\Mail\VisitorMail;
 use App\Models\Event;
 use App\Models\EventDetail;
+use App\Models\Member;
 use App\Models\Visitor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -83,6 +85,213 @@ class RegistranFormComponentTest extends TestCase
         $this->assertDatabaseMissing('visitors', [
             'event_id' => $event->id,
             'email' => 'new@example.com',
+        ]);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_it_cannot_save_registration_without_email(): void
+    {
+        Mail::fake();
+
+        $event = $this->createEvent([
+            'session' => ['offline'],
+        ], [
+            'show_invoice_upload' => false,
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('type', VisitorType::VISITOR->value)
+            ->set('name', 'New Visitor')
+            ->set('business', 'Consulting')
+            ->set('company', 'Acme')
+            ->set('phone', '08123456789')
+            ->set('invited_by', 'A Member')
+            ->call('save')
+            ->assertHasErrors(['email' => 'required'])
+            ->assertSet('isSubmitted', false);
+
+        $this->assertDatabaseMissing('visitors', [
+            'event_id' => $event->id,
+            'name' => 'New Visitor',
+        ]);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_it_rejects_visitor_type_that_is_not_available_for_the_selected_session(): void
+    {
+        Mail::fake();
+
+        $member = Member::create([
+            'name' => 'Magnitude Member',
+            'email' => 'member@example.com',
+            'phone' => '08123456789',
+        ]);
+
+        $event = $this->createEvent([
+            'session' => ['offline'],
+        ], [
+            'show_invoice_upload' => false,
+            'override_offline_visitor_type' => true,
+            'offline_visitor_type_list' => [VisitorType::VISITOR->value],
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('type', VisitorType::MAGNITUDE->value)
+            ->set('name', $member->name)
+            ->set('email', $member->email)
+            ->set('phone', $member->phone)
+            ->call('save')
+            ->assertHasErrors(['type' => 'in'])
+            ->assertSet('isSubmitted', false);
+
+        $this->assertDatabaseMissing('visitors', [
+            'event_id' => $event->id,
+            'email' => $member->email,
+        ]);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_it_requires_invited_by_for_visitors(): void
+    {
+        Mail::fake();
+
+        $event = $this->createEvent([
+            'session' => ['offline'],
+        ], [
+            'show_invoice_upload' => false,
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('type', VisitorType::VISITOR->value)
+            ->set('name', 'New Visitor')
+            ->set('business', 'Consulting')
+            ->set('company', 'Acme')
+            ->set('phone', '08123456789')
+            ->set('email', 'new@example.com')
+            ->call('save')
+            ->assertHasErrors(['invited_by' => 'required'])
+            ->assertSet('isSubmitted', false);
+
+        $this->assertDatabaseMissing('visitors', [
+            'event_id' => $event->id,
+            'email' => 'new@example.com',
+        ]);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_it_requires_magnitude_registration_to_match_a_visible_member(): void
+    {
+        Mail::fake();
+
+        $event = $this->createEvent([
+            'session' => ['online'],
+        ], [
+            'show_invoice_upload' => false,
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('type', VisitorType::MAGNITUDE->value)
+            ->set('name', 'Fake Member')
+            ->set('email', 'fake@example.com')
+            ->set('phone', '08123456789')
+            ->set('status', VisitorStatusType::HADIR->value)
+            ->call('save')
+            ->assertHasErrors(['name'])
+            ->assertSet('isSubmitted', false);
+
+        $this->assertDatabaseMissing('visitors', [
+            'event_id' => $event->id,
+            'email' => 'fake@example.com',
+        ]);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_it_requires_magnitude_status_when_status_field_is_shown(): void
+    {
+        Mail::fake();
+
+        $member = Member::create([
+            'name' => 'Magnitude Member',
+            'email' => 'member@example.com',
+            'phone' => '08123456789',
+        ]);
+
+        $event = $this->createEvent([
+            'session' => ['online'],
+        ], [
+            'show_invoice_upload' => false,
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('type', VisitorType::MAGNITUDE->value)
+            ->set('name', $member->name)
+            ->set('email', $member->email)
+            ->set('phone', $member->phone)
+            ->call('save')
+            ->assertHasErrors(['status' => 'required'])
+            ->assertSet('isSubmitted', false);
+
+        $this->assertDatabaseMissing('visitors', [
+            'event_id' => $event->id,
+            'email' => $member->email,
+        ]);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_it_requires_substitute_name_for_magnitude_substitute_response(): void
+    {
+        Mail::fake();
+
+        $member = Member::create([
+            'name' => 'Magnitude Member',
+            'email' => 'member@example.com',
+            'phone' => '08123456789',
+        ]);
+
+        $event = $this->createEvent([
+            'session' => ['online', 'offline'],
+        ], [
+            'show_invoice_upload' => false,
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('sessions', ['offline'])
+            ->set('type', VisitorType::MAGNITUDE->value)
+            ->set('name', $member->name)
+            ->set('email', $member->email)
+            ->set('phone', $member->phone)
+            ->set('status', VisitorStatusType::SUBSTITUTE->value)
+            ->call('save')
+            ->assertHasErrors(['substituted_by' => 'required'])
+            ->assertSet('isSubmitted', false);
+
+        $this->assertDatabaseMissing('visitors', [
+            'event_id' => $event->id,
+            'email' => $member->email,
         ]);
 
         Mail::assertNothingSent();
