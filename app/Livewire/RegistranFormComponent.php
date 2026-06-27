@@ -328,21 +328,16 @@ class RegistranFormComponent extends Component
     #[Computed]
     public function getStatusType(): array
     {
-        $statusTypeList = [];
-
         if ($this->isOnlineSelected()) {
-            $statusTypeList = [
+            return [
                 VisitorStatusType::HADIR,
-                // VisitorStatusType::SUBSTITUTE,
-            ];
-        } else {
-            $statusTypeList = [
-                VisitorStatusType::SAKIT,
-                VisitorStatusType::SUBSTITUTE,
             ];
         }
 
-        return $statusTypeList;
+        return [
+            VisitorStatusType::SAKIT,
+            VisitorStatusType::SUBSTITUTE,
+        ];
     }
 
     /**
