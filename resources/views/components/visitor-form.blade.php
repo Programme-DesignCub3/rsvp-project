@@ -69,5 +69,28 @@
         </div>
     </div>
 
+    {{-- Industri yang ingin dikoneksikan (khusus Visitor) --}}
+    @if (method_exists($this, 'showsIndustryConnectField') && $this->showsIndustryConnectField())
+        <div class="form-group">
+            <label class="form-label text-black">WHICH INDUSTRY YOU WANT TO CONNECT WITH?:</label>
+
+            <div class="flex flex-col gap-2">
+                @foreach ($this->memberCategories as $category)
+                    <label class="flex w-full items-center gap-x-4 border border-black p-2 font-extrabold"
+                        for="industry-{{ $category->id }}" wire:key="industry-{{ $category->id }}">
+                        <input id="industry-{{ $category->id }}" type="checkbox" value="{{ $category->name }}"
+                            wire:model.change="industries" />
+                        <span class="flex-grow">{{ $category->name }}</span>
+                    </label>
+                @endforeach
+            </div>
+
+            <div>
+                @error('industries')
+                    <span class="error-form-message">{{ $message }}</span>
+                @enderror
+            </div>
+        </div>
+    @endif
 
 </div>

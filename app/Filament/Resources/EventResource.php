@@ -139,17 +139,21 @@ class EventResource extends Resource
                             ])
                             ->columns(2)
                             ->required()
+                            ->live()
+                            ->afterStateUpdated(fn (Set $set, Get $get) => self::syncCheckableOne($set, $get))
                             ->columnSpanFull(),
 
                         Toggle::make('checkable')
                             ->label(__('Allow Session Selection'))
                             ->helperText('Let registrants choose which available session they will attend.')
-                            ->live(),
+                            ->live()
+                            ->afterStateUpdated(fn (Set $set, Get $get) => self::syncCheckableOne($set, $get)),
 
                         Toggle::make('checkable_one')
                             ->label(__('Limit to One Session'))
                             ->helperText('Registrants may select only one attendance session.')
-                            ->hidden(fn (Get $get): bool => ! $get('checkable')),
+                            ->live()
+                            ->hidden(fn (Get $get): bool => ! self::shouldShowCheckableOne($get)),
                     ]),
 
                 self::eventDateSection(),
@@ -847,5 +851,28 @@ class EventResource extends Resource
         $date = Carbon::parse($date);
 
         $set('registration_end', $date->addDays(1)->format('Y-m-d H:i'));
+    }
+
+    /**
+     * Reset checkable_one whenever it no longer makes sense to show it.
+     */
+    protected static function syncCheckableOne(Set $set, Get $get): void
+    {
+        if (! self::shouldShowCheckableOne($get)) {
+            $set('checkable_one', false);
+        }
+    }
+
+    /**
+     * Determine whether limiting registrants to a single session is applicable.
+     */
+    protected static function shouldShowCheckableOne(Get $get): bool
+    {
+        $sessions = $get('session');
+
+        return $get('checkable')
+            && is_array($sessions)
+            && in_array('offline', $sessions, true)
+            && in_array('online', $sessions, true);
     }
 }
