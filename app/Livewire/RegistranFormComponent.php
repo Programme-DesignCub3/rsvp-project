@@ -332,6 +332,7 @@ class RegistranFormComponent extends Component
             return [
                 VisitorStatusType::HADIR,
                 VisitorStatusType::SUBSTITUTE,
+                VisitorStatusType::SAKIT,
             ];
         }
 
