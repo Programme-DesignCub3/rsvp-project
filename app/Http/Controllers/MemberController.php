@@ -22,7 +22,7 @@ class MemberController extends Controller
             }
         }
 
-        $members = $query->paginate(12);
+        $members = $query->paginate(12)->withQueryString();
 
         return view('members.index', compact(['members', 'categories']));
     }

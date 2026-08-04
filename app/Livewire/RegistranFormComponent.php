@@ -328,9 +328,17 @@ class RegistranFormComponent extends Component
     #[Computed]
     public function getStatusType(): array
     {
+        if (! $this->event->checkable) {
+            return [
+                VisitorStatusType::HADIR,
+                VisitorStatusType::SUBSTITUTE,
+            ];
+        }
+
         if ($this->isOnlineSelected()) {
             return [
                 VisitorStatusType::HADIR,
+                VisitorStatusType::SUBSTITUTE,
             ];
         }
 
@@ -933,6 +941,10 @@ class RegistranFormComponent extends Component
     {
         if (! $this->isVisitorTypeMagnitude()) {
             return false;
+        }
+
+        if (! $this->event->checkable) {
+            return true;
         }
 
         if ($this->event->checkable && $this->event->checkable_one) {

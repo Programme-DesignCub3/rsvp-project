@@ -4,11 +4,14 @@
 @section('page')
     <div class="min-h-screen">
         <div>
-            @if ($event->slug == 'visitor-day-11-aug-2026')
+            {{-- @if ($event->slug == 'visitor-day-11-aug-2026')
                 @livewire('bni-11-aug', ['slug' => $slug, 'event' => $event])
             @else
                 @livewire('registran-form-component', ['slug' => $slug, 'event' => $event])
-            @endif
+                @endif --}}
+
+
+            @livewire('registran-form-component', ['slug' => $slug, 'event' => $event])
         </div>
     </div>
 @endsection

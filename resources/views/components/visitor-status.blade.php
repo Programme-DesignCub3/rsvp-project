@@ -44,7 +44,8 @@
  @if ($this->type === \App\Enums\VisitorType::MAGNITUDE->value)
      {{-- STATUS --}}
      @if (
-         $this->event->is_online_event ||
+         !$this->event->checkable ||
+             $this->event->is_online_event ||
              $this->event->is_both_event ||
              ($this->event->is_offline_event && !$this->isOfflineSelected))
 
@@ -52,7 +53,9 @@
              @php
                  $label = '';
 
-                 if (!$this->isOnlineSelected()) {
+                 if (!$this->event->checkable) {
+                     $label = 'KEHADIRAN';
+                 } elseif (!$this->isOnlineSelected()) {
                      $label = 'KETIDAKHADIRAN';
                  } else {
                      $label = 'KEHADIRAN';
@@ -61,7 +64,7 @@
 
              <label class="form-label text-black" for="status">
                  STATUS {{ $label }}
-                 @if ($this->event->is_online_event || $this->event->is_both_event)
+                 @if ($this->event->checkable && ($this->event->is_online_event || $this->event->is_both_event))
                      ONLINE
                  @endif
                  :
