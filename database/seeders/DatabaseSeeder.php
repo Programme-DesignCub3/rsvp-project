@@ -20,5 +20,6 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         $this->call(MemberCategorySeeder::class);
+        $this->call(AdminEmailRecipientSeeder::class);
     }
 }

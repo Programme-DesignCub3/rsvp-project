@@ -26,6 +26,10 @@ class ContactMessageResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-envelope';
 
+    protected static ?string $navigationGroup = 'Communication';
+
+    protected static ?int $navigationSort = 1;
+
     protected static ?string $navigationLabel = 'Contact Messages';
 
     protected static ?string $modelLabel = 'Contact Message';
@@ -56,7 +60,9 @@ class ContactMessageResource extends Resource
                 Section::make('Message')
                     ->schema([
                         TextEntry::make('message')
-                            ->hiddenLabel(),
+                            ->hiddenLabel()
+                            ->formatStateUsing(fn (string $state): string => nl2br(e($state)))
+                            ->html(),
                     ]),
             ]);
     }

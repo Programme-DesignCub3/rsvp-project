@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreContactRequest;
 use App\Mail\ContactMail;
+use App\Models\AdminEmailRecipient;
 use App\Models\ContactMessage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
@@ -31,11 +32,56 @@ class ContactController extends Controller
             'message' => $validatedData['message'],
         ]);
 
-        try {
-            Mail::to('david@designcub3.com')
-                ->send(new ContactMail($validatedData));
+        $validatedData['createdDate'] = $contactMessage->created_at;
 
-            Log::info('Email sent to david@designcub3.com with data: ', $validatedData);
+        try {
+            $adminRecipients = AdminEmailRecipient::query()
+                ->orderBy('order_column')
+                ->get();
+
+            $validRecipients = $adminRecipients
+                ->filter(fn (AdminEmailRecipient $recipient): bool => filter_var(trim((string) $recipient->email), FILTER_VALIDATE_EMAIL) !== false)
+                ->map(fn (AdminEmailRecipient $recipient): array => [
+                    'email' => trim((string) $recipient->email),
+                    'name' => filled($recipient->name) ? $recipient->name : trim((string) $recipient->email),
+                ])
+                ->values();
+
+            $invalidRecipients = $adminRecipients
+                ->reject(fn (AdminEmailRecipient $recipient): bool => filter_var(trim((string) $recipient->email), FILTER_VALIDATE_EMAIL) !== false)
+                ->map(fn (AdminEmailRecipient $recipient): array => [
+                    'id' => $recipient->id,
+                    'name' => $recipient->name,
+                    'email' => $recipient->email,
+                ])
+                ->values()
+                ->all();
+
+            if ($invalidRecipients !== []) {
+                Log::warning('Contact form email skipped invalid admin recipients.', [
+                    'contact_message_id' => $contactMessage->id,
+                    'invalid_recipients' => $invalidRecipients,
+                ]);
+            }
+
+            if ($validRecipients->isEmpty()) {
+                Log::warning('Contact form email skipped because no valid admin recipients are configured.', [
+                    'contact_message_id' => $contactMessage->id,
+                ]);
+            } else {
+                $primaryRecipient = $validRecipients->shift();
+                $ccRecipients = $validRecipients->all();
+
+                Mail::to([$primaryRecipient])
+                    ->cc($ccRecipients)
+                    ->send(new ContactMail($validatedData));
+
+                Log::info('Contact form email sent to admin recipients.', [
+                    'contact_message_id' => $contactMessage->id,
+                    'primary_recipient' => $primaryRecipient,
+                    'cc_recipients' => $ccRecipients,
+                ]);
+            }
         } catch (Throwable $exception) {
             Log::error('Contact form email failed to send.', [
                 'contact_message_id' => $contactMessage->id,

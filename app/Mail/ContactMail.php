@@ -3,7 +3,6 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -29,7 +28,7 @@ class ContactMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'New BNI MAGNITUDE Contact Form Submission: ' . $this->data['fullname'],
+            subject: 'New BNI MAGNITUDE Contact Form Submission: '.$this->data['fullname'].' | ('.$this->data['createdDate']->format('l, d-m-y | H:i:s').')',
         );
     }
 
