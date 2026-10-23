@@ -352,6 +352,20 @@ class RegistranFormComponent extends Component
     }
 
     /**
+     * Return status choices based on whether the visitor selected an online session.
+     *
+     * @return array<int, VisitorStatusType>
+     */
+    #[Computed]
+    public function getCheckableOneStatusType(): array
+    {
+        return [
+            VisitorStatusType::HADIR,
+            VisitorStatusType::HADIR_TESTIMONIAL,
+        ];
+    }
+
+    /**
      * Determine whether the current registration type is an existing Magnitude member.
      */
     #[Computed]
