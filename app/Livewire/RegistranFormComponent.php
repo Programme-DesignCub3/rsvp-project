@@ -331,6 +331,7 @@ class RegistranFormComponent extends Component
         if (! $this->event->checkable) {
             return [
                 VisitorStatusType::HADIR,
+                VisitorStatusType::HADIR_TESTIMONIAL,
                 VisitorStatusType::SUBSTITUTE,
                 VisitorStatusType::SAKIT,
             ];
@@ -339,6 +340,7 @@ class RegistranFormComponent extends Component
         if ($this->isOnlineSelected()) {
             return [
                 VisitorStatusType::HADIR,
+                VisitorStatusType::HADIR_TESTIMONIAL,
                 VisitorStatusType::SUBSTITUTE,
             ];
         }
@@ -346,6 +348,20 @@ class RegistranFormComponent extends Component
         return [
             VisitorStatusType::SAKIT,
             VisitorStatusType::SUBSTITUTE,
+        ];
+    }
+
+    /**
+     * Return status choices based on whether the visitor selected an online session.
+     *
+     * @return array<int, VisitorStatusType>
+     */
+    #[Computed]
+    public function getCheckableOneStatusType(): array
+    {
+        return [
+            VisitorStatusType::HADIR,
+            VisitorStatusType::HADIR_TESTIMONIAL,
         ];
     }
 

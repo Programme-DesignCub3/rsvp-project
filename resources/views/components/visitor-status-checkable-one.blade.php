@@ -77,6 +77,24 @@
                      </div>
                  </div>
              @endif
-
+         @else
+             <label class="form-label text-black" for="status">
+                 STATUS KEHADIRAN:
+             </label>
+             <select id="status" required name="status" wire:model.live="status">
+                 <option value="">- PLEASE SELECT STATUS -</option>
+                 @foreach ($this->getCheckableOneStatusType() as $status_item)
+                     <option value="{{ $status_item->value }}" wire:key='{{ $status_item->value }}'>
+                         {{ $status_item->getLabel() }}
+                     </option>
+                 @endforeach
+             </select>
+             <div>
+                 @error('status')
+                     <span class="error-form-message">{{ $message }}</span>
+                 @enderror
+             </div>
          @endif
      @endif
+
+ </div>
