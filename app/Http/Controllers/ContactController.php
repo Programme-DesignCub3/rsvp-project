@@ -2,37 +2,46 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreContactRequest;
+use App\Mail\ContactMail;
+use App\Models\ContactMessage;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Redirect;
+use Illuminate\View\View;
+use Throwable;
 
 class ContactController extends Controller
 {
-    public function index()
+    public function index(): View
     {
         return view('contact.index');
     }
 
-    public function send(Request $request)
+    public function send(StoreContactRequest $request): RedirectResponse
     {
-        $validatedData = $request->validate([
-            'fullname' => 'required',
-            'businessClassification' => 'required',
-            'companyName' => 'required',
-            'email' => 'required|email',
-            'phone' => 'required',
-            'message' => 'required',
+        $validatedData = $request->validated();
+
+        $contactMessage = ContactMessage::create([
+            'fullname' => $validatedData['fullname'],
+            'business_classification' => $validatedData['businessClassification'],
+            'company_name' => $validatedData['companyName'],
+            'email' => $validatedData['email'],
+            'phone' => $validatedData['phone'],
+            'message' => $validatedData['message'],
         ]);
 
-        // if (! $validatedData) {
-        //     return Redirect::back()->withErrors($request->all())->withInput();
-        // }
+        try {
+            Mail::to('david@designcub3.com')
+                ->send(new ContactMail($validatedData));
 
-        Mail::to('david@designcub3.com')
-            ->send(new \App\Mail\ContactMail($validatedData));
-
-        Log::info('Email sent to david@designcub3.com with data: ', $validatedData);
+            Log::info('Email sent to david@designcub3.com with data: ', $validatedData);
+        } catch (Throwable $exception) {
+            Log::error('Contact form email failed to send.', [
+                'contact_message_id' => $contactMessage->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Message has been sent!');
     }
