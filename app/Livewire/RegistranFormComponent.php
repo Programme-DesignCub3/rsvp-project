@@ -331,6 +331,7 @@ class RegistranFormComponent extends Component
         if (! $this->event->checkable) {
             return [
                 VisitorStatusType::HADIR,
+                VisitorStatusType::HADIR_TESTIMONIAL,
                 VisitorStatusType::SUBSTITUTE,
                 VisitorStatusType::SAKIT,
             ];
@@ -339,6 +340,7 @@ class RegistranFormComponent extends Component
         if ($this->isOnlineSelected()) {
             return [
                 VisitorStatusType::HADIR,
+                VisitorStatusType::HADIR_TESTIMONIAL,
                 VisitorStatusType::SUBSTITUTE,
             ];
         }
