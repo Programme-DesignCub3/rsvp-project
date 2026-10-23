@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\FoodType;
+use App\Enums\VisitorStatusType;
 use App\Enums\VisitorType;
 use App\Livewire\Bni11Aug;
 use App\Mail\VisitorMail;
@@ -146,6 +147,44 @@ class Bni11AugTest extends TestCase
         ])->set('type', VisitorType::MAGNITUDE->value);
 
         $this->assertArrayNotHasKey('industries', $component->instance()->rules());
+    }
+
+    public function test_absent_magnitude_member_can_save_without_checkable_one_session(): void
+    {
+        Mail::fake();
+
+        $member = Member::create([
+            'name' => 'Magnitude Member',
+            'email' => 'member@example.com',
+            'phone' => '08123456789',
+        ]);
+
+        $event = $this->createEvent([
+            'checkable' => true,
+            'checkable_one' => true,
+            'session' => ['online', 'offline'],
+        ]);
+
+        Livewire::test(Bni11Aug::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('type', VisitorType::MAGNITUDE->value)
+            ->set('name', $member->name)
+            ->set('email', $member->email)
+            ->set('phone', $member->phone)
+            ->set('status', VisitorStatusType::SAKIT->value)
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('isSubmitted', true);
+
+        $this->assertDatabaseHas('visitors', [
+            'event_id' => $event->id,
+            'email' => $member->email,
+            'status' => VisitorStatusType::SAKIT->value,
+            'is_online' => false,
+            'is_offline' => false,
+        ]);
     }
 
     public function test_industries_are_cleared_when_switching_away_from_visitor_type(): void

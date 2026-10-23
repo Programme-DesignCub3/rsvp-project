@@ -90,6 +90,162 @@ class RegistranFormComponentTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    public function test_it_allows_absent_magnitude_member_without_selecting_a_checkable_one_session(): void
+    {
+        Mail::fake();
+
+        $member = $this->makeMagnitudeMember();
+        $event = $this->createEvent([
+            'checkable_one' => true,
+            'session' => ['online', 'offline'],
+        ], [
+            'show_invoice_upload' => false,
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('type', VisitorType::MAGNITUDE->value)
+            ->set('name', $member->name)
+            ->set('email', $member->email)
+            ->set('phone', $member->phone)
+            ->set('status', VisitorStatusType::SAKIT->value)
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('isSubmitted', true);
+
+        $this->assertDatabaseHas('visitors', [
+            'event_id' => $event->id,
+            'email' => $member->email,
+            'status' => VisitorStatusType::SAKIT->value,
+            'is_online' => false,
+            'is_offline' => false,
+        ]);
+    }
+
+    public function test_it_saves_substitute_without_session_for_checkable_one(): void
+    {
+        Mail::fake();
+
+        $member = $this->makeMagnitudeMember();
+        $event = $this->createEvent([
+            'checkable_one' => true,
+            'session' => ['online', 'offline'],
+        ], [
+            'show_invoice_upload' => false,
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('type', VisitorType::MAGNITUDE->value)
+            ->set('name', $member->name)
+            ->set('email', $member->email)
+            ->set('phone', $member->phone)
+            ->set('status', VisitorStatusType::SUBSTITUTE->value)
+            ->set('substituted_by', 'Replacement Member')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('isSubmitted', true);
+
+        $visitor = Visitor::where('event_id', $event->id)
+            ->where('email', $member->email)
+            ->firstOrFail();
+
+        $this->assertSame(VisitorStatusType::SUBSTITUTE->value, $visitor->status);
+        $this->assertSame('Replacement Member', $visitor->meta['substituted_by']);
+        $this->assertFalse($visitor->is_online);
+        $this->assertFalse($visitor->is_offline);
+    }
+
+    public function test_it_requires_status_for_checkable_one_when_session_is_selected(): void
+    {
+        Mail::fake();
+
+        $member = $this->makeMagnitudeMember();
+        $event = $this->createEvent([
+            'checkable_one' => true,
+            'session' => ['online', 'offline'],
+        ], [
+            'show_invoice_upload' => false,
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('sessions', ['offline'])
+            ->set('type', VisitorType::MAGNITUDE->value)
+            ->set('name', $member->name)
+            ->set('email', $member->email)
+            ->set('phone', $member->phone)
+            ->call('save')
+            ->assertHasErrors(['status' => 'required'])
+            ->assertSet('isSubmitted', false);
+    }
+
+    public function test_it_accepts_hadir_status_for_checkable_one_with_offline_session(): void
+    {
+        Mail::fake();
+
+        $member = $this->makeMagnitudeMember();
+        $event = $this->createEvent([
+            'checkable_one' => true,
+            'session' => ['online', 'offline'],
+        ], [
+            'show_invoice_upload' => false,
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('sessions', ['offline'])
+            ->set('type', VisitorType::MAGNITUDE->value)
+            ->set('name', $member->name)
+            ->set('email', $member->email)
+            ->set('phone', $member->phone)
+            ->set('status', VisitorStatusType::HADIR->value)
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('isSubmitted', true);
+
+        $this->assertDatabaseHas('visitors', [
+            'event_id' => $event->id,
+            'email' => $member->email,
+            'status' => VisitorStatusType::HADIR->value,
+            'is_offline' => true,
+        ]);
+    }
+
+    public function test_it_rejects_attendance_status_without_session_for_checkable_one(): void
+    {
+        Mail::fake();
+
+        $member = $this->makeMagnitudeMember();
+        $event = $this->createEvent([
+            'checkable_one' => true,
+            'session' => ['online', 'offline'],
+        ], [
+            'show_invoice_upload' => false,
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->set('type', VisitorType::MAGNITUDE->value)
+            ->set('name', $member->name)
+            ->set('email', $member->email)
+            ->set('phone', $member->phone)
+            ->set('status', VisitorStatusType::HADIR->value)
+            ->call('save')
+            ->assertHasErrors(['sessions' => 'required', 'status' => 'in'])
+            ->assertSet('isSubmitted', false);
+    }
+
     public function test_it_cannot_save_registration_without_email(): void
     {
         Mail::fake();
@@ -1093,6 +1249,15 @@ class RegistranFormComponentTest extends TestCase
             ->assertSeeHtml('wire:model.change="food.drink"')
             ->assertSeeHtml('wire:key="ala-carte-food-control-')
             ->assertSeeHtml('wire:key="ala-carte-drink-control-');
+    }
+
+    private function makeMagnitudeMember(): Member
+    {
+        return Member::create([
+            'name' => 'Magnitude Member',
+            'email' => 'member@example.com',
+            'phone' => '08123456789',
+        ]);
     }
 
     /**
