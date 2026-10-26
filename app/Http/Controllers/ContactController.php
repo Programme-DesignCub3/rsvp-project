@@ -69,19 +69,18 @@ class ContactController extends Controller
                     'contact_message_id' => $contactMessage->id,
                 ]);
             } else {
-                $primaryRecipient = $validRecipients->shift();
-                $ccRecipients = $validRecipients->all();
 
-                Mail::to([$primaryRecipient])
-                    ->cc($ccRecipients)
+                Mail::to('contact@bnimagnitude.com')
+                    ->cc($adminRecipients)
                     ->send(new ContactMail($validatedData));
 
                 Log::info('Contact form email sent to admin recipients.', [
                     'contact_message_id' => $contactMessage->id,
-                    'primary_recipient' => $primaryRecipient,
-                    'cc_recipients' => $ccRecipients,
+                    'to' => 'contact@bnimagnitude.com',
+                    'cc_recipients' => $adminRecipients,
                 ]);
             }
+
         } catch (Throwable $exception) {
             Log::error('Contact form email failed to send.', [
                 'contact_message_id' => $contactMessage->id,
