@@ -96,7 +96,7 @@ class AttendanceStatusNotCheckableTest extends TestCase
         ]);
     }
 
-    public function test_it_rejects_sakit_status_when_event_is_not_checkable(): void
+    public function test_it_accepts_sakit_status_when_event_is_not_checkable(): void
     {
         Mail::fake();
 
@@ -117,8 +117,14 @@ class AttendanceStatusNotCheckableTest extends TestCase
             ->set('phone', $member->phone)
             ->set('status', VisitorStatusType::SAKIT->value)
             ->call('save')
-            ->assertHasErrors(['status' => 'in'])
-            ->assertSet('isSubmitted', false);
+            ->assertHasNoErrors()
+            ->assertSet('isSubmitted', true);
+
+        $this->assertDatabaseHas('visitors', [
+            'event_id' => $event->id,
+            'email' => $member->email,
+            'status' => VisitorStatusType::SAKIT->value,
+        ]);
     }
 
     public function test_it_requires_substituted_by_for_substitute_when_event_is_not_checkable(): void
