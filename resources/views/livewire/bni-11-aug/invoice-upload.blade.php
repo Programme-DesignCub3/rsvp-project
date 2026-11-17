@@ -31,7 +31,8 @@
                                             <p class="text-xs font-semibold">{{ $paymentItem['description'] }}</p>
                                         @endif
                                         @if ($paymentItem['amount_label'])
-                                            <p class="whitespace-nowrap font-extrabold">{{ $paymentItem['amount_label'] }}</p>
+                                            <p class="whitespace-nowrap font-extrabold">
+                                                {{ $paymentItem['amount_label'] }}</p>
                                         @endif
                                     </div>
                                 @endforeach
@@ -52,7 +53,7 @@
         @if ($this->userShouldUploadInvoice)
             <p class="font-semibold">Please transfer payment to <br>
                 <strong class="text-lg">
-                    Bank Jago 101916230906 a/n Stefanny Liezal
+                    OCBC NISP 693819323843 a/n Yuliah
                 </strong>
             </p>
 
@@ -84,7 +85,8 @@
 
                 @if ($payment)
                     <div class="bg-gray my-3 px-2">
-                        <img class="w-full max-w-screen-lg lg:max-w-sm" src="{{ $payment->temporaryUrl() }}" alt="">
+                        <img class="w-full max-w-screen-lg lg:max-w-sm" src="{{ $payment->temporaryUrl() }}"
+                            alt="">
                     </div>
                 @endif
 
