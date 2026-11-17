@@ -96,7 +96,7 @@ class AttendanceStatusNotCheckableTest extends TestCase
         ]);
     }
 
-    public function test_it_rejects_sakit_status_when_event_is_not_checkable(): void
+    public function test_it_accepts_sakit_status_when_event_is_not_checkable(): void
     {
         Mail::fake();
 
@@ -117,8 +117,13 @@ class AttendanceStatusNotCheckableTest extends TestCase
             ->set('phone', $member->phone)
             ->set('status', VisitorStatusType::SAKIT->value)
             ->call('save')
-            ->assertHasErrors(['status' => 'in'])
-            ->assertSet('isSubmitted', false);
+            ->assertSet('isSubmitted', true);
+
+        $this->assertDatabaseHas('visitors', [
+            'event_id' => $event->id,
+            'email' => $member->email,
+            'status' => VisitorStatusType::SAKIT->value,
+        ]);
     }
 
     public function test_it_requires_substituted_by_for_substitute_when_event_is_not_checkable(): void
@@ -220,6 +225,7 @@ class AttendanceStatusNotCheckableTest extends TestCase
             'offline_foods' => $detailAttributes['offline_foods'] ?? null,
             'food_type' => $detailAttributes['food_type'] ?? FoodType::BUFFET,
             'show_invoice_upload' => $detailAttributes['show_invoice_upload'] ?? false,
+            'enable_unique_payment_code' => $detailAttributes['enable_unique_payment_code'] ?? false,
             'food_required' => $detailAttributes['food_required'] ?? false,
             'override_online_visitor_type' => $detailAttributes['override_online_visitor_type'] ?? false,
             'override_offline_visitor_type' => $detailAttributes['override_offline_visitor_type'] ?? false,

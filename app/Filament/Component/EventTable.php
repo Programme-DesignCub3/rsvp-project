@@ -3,14 +3,19 @@
 namespace App\Filament\Component;
 
 use App\Enums\VisitorType;
+use App\Mail\VisitorMail;
 use App\Models\Event;
 use App\Models\Visitor;
+use Filament\Facades\Filament;
+use Filament\Notifications\Notification;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\SpatieMediaLibraryImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
+use Throwable;
 
 class EventTable
 {
@@ -44,6 +49,57 @@ class EventTable
         ];
     }
 
+    public static function paymentVerificationAction(): Action
+    {
+        return Action::make('payment_verification')
+            ->label(fn (Visitor $record): string => $record->payment_verified ? 'Unverify' : 'Verify')
+            ->icon(fn (Visitor $record): string => $record->payment_verified ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
+            ->color(fn (Visitor $record): string => $record->payment_verified ? 'danger' : 'success')
+            ->requiresConfirmation()
+            ->modalHeading(fn (Visitor $record): string => $record->payment_verified ? 'Unverify payment?' : 'Verify payment?')
+            ->modalDescription(fn (Visitor $record): string => $record->payment_verified
+                ? 'This payment will be marked as not verified.'
+                : 'Confirm the payment proof matches the amount and BERITA.')
+            ->modalSubmitActionLabel(fn (Visitor $record): string => $record->payment_verified ? 'Unverify' : 'Verify')
+            ->action(function (Visitor $record): void {
+                $verified = ! $record->payment_verified;
+
+                $record->update([
+                    'payment_verified' => $verified,
+                    'payment_verified_at' => $verified ? now() : null,
+                    'payment_verified_by' => $verified ? auth()->id() : null,
+                ]);
+            });
+    }
+
+    public static function resendPaymentEmailAction(): Action
+    {
+        return Action::make('resend_payment_email')
+            ->label('Resend email')
+            ->icon('heroicon-o-envelope')
+            ->color('gray')
+            ->visible(fn (Visitor $record): bool => filled($record->email))
+            ->requiresConfirmation()
+            ->modalHeading('Resend email?')
+            ->modalDescription(fn (Visitor $record): string => 'Send event and payment details to '.$record->email.'.')
+            ->modalSubmitActionLabel('Send')
+            ->action(function (Action $action, Visitor $record): void {
+                try {
+                    Mail::to($record->email)->send(new VisitorMail($record));
+                } catch (Throwable $throwable) {
+                    report($throwable);
+
+                    Notification::make()
+                        ->danger()
+                        ->title('Failed to send email')
+                        ->send();
+
+                    $action->halt();
+                }
+            })
+            ->successNotificationTitle('Email sent');
+    }
+
     public static function ManageVisitor()
     {
         return [
@@ -70,10 +126,14 @@ class EventTable
                 ->label('Register Time')
                 // ->sortable()
                 ->state(fn (Visitor $visitor): string => (new \DateTime($visitor->created_at))->format('H:i')),
-            TextColumn::make('business'),
-            TextColumn::make('company'),
-            TextColumn::make('email'),
-            TextColumn::make('phone'),
+            TextColumn::make('business')
+                ->searchable(),
+            TextColumn::make('company')
+                ->searchable(),
+            TextColumn::make('email')
+                ->searchable(),
+            TextColumn::make('phone')
+                ->searchable(),
             TextColumn::make('invited_by'),
 
             IconColumn::make('is_online')
@@ -115,6 +175,27 @@ class EventTable
                 ->listWithLineBreaks()
                 ->bulleted()
                 ->label('Packaged Food'),
+
+            TextColumn::make('registration_sequence')
+                ->label('Reg #')
+                ->sortable()
+                ->searchable()
+                ->placeholder('-'),
+            TextColumn::make('payment_amount')
+                ->label('Payment')
+                ->sortable()
+                ->formatStateUsing(
+                    fn ($state): string => $state === null
+                        ? '-'
+                        : ($state > 0 ? 'Rp '.number_format($state, 0, ',', '.') : 'Gratis')
+                ),
+            TextColumn::make('payment_berita')
+                ->label('BERITA')
+                ->placeholder('-'),
+            IconColumn::make('payment_verified')
+                ->label('Verified')
+                ->boolean()
+                ->visible(fn (): bool => in_array(Filament::getCurrentPanel()?->getId(), ['admin', 'bendahara'], true)),
 
             SpatieMediaLibraryImageColumn::make('Payment Proof')
                 ->collection('payment_proof')

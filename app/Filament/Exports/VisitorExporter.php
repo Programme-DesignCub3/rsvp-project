@@ -35,6 +35,16 @@ class VisitorExporter extends Exporter
             ExportColumn::make('email'),
             ExportColumn::make('invited_by'),
             ExportColumn::make('food'),
+            ExportColumn::make('registration_sequence')
+                ->label('Registration No'),
+            ExportColumn::make('payment_base_amount')
+                ->label('Payment Base Amount'),
+            ExportColumn::make('payment_amount')
+                ->label('Payment Amount'),
+            ExportColumn::make('payment_berita')
+                ->label('BERITA'),
+            ExportColumn::make('payment_verified')
+                ->label('Payment Verified'),
             ExportColumn::make('payment')
                 ->enabledByDefault(fn (): bool => Filament::getCurrentPanel()->getId() === 'admin'),
             ExportColumn::make('Session')

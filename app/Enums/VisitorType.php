@@ -6,34 +6,35 @@ use Filament\Support\Contracts\HasLabel;
 
 enum VisitorType: string implements HasLabel
 {
-    case VISITOR = 'visitor';
-    case INTERNATIONAL_MEMBER = 'international member';
-    case NATIONAL_DIRECTOR = 'national director';
-    case DC_AND_AMBASSADOR = 'dc and ambassador';
+    // shortcut: Filament selects follow declaration order, keep new cases alphabetical by label.
     case ALTITUDE = 'altitude';
-    case MAGNITUDE = 'magnitude';
-    case MAGNIFY = 'magnify';
+    case AMPLIFY = 'amplify';
+    case BALIONAIRE = 'balionaire';
+    case CHAMPION = 'champion';
+    case DC_AND_AMBASSADOR = 'dc and ambassador';
     case DIGNIFY = 'dignify';
     case FIREFLY = 'firefly';
-    case AMPLIFY = 'amplify';
     case GLORIFY = 'glorify';
-    case BALIONAIRE = 'balionaire';
-    case RISE = 'rise';
-    case MULTIPLY = 'multiply';
-    case MAHARDIKA = 'mahardika';
-    case NUSANTARA = 'nusantara';
-    case VICTORY = 'victory';
     case GROW = 'grow';
-    case VISION = 'vision';
-    case CHAMPION = 'champion';
-    case PASSION = 'passion';
-    case STAR = 'star';
-    case PIONEER = 'pioneer';
-    case MULTIRICH = 'multirich';
-    case OTHER = 'other';
-    case OBSERVER = 'observer';
-    case VISITOR_HOST = 'visitor Host';
     case GUEST = 'guest';
+    case INTERNATIONAL_MEMBER = 'international member';
+    case MAGNIFY = 'magnify';
+    case MAGNITUDE = 'magnitude';
+    case MAHARDIKA = 'mahardika';
+    case MULTIPLY = 'multiply';
+    case MULTIRICH = 'multirich';
+    case NATIONAL_DIRECTOR = 'national director';
+    case NUSANTARA = 'nusantara';
+    case OBSERVER = 'observer';
+    case OTHER = 'other';
+    case PASSION = 'passion';
+    case PIONEER = 'pioneer';
+    case RISE = 'rise';
+    case STAR = 'star';
+    case VICTORY = 'victory';
+    case VISION = 'vision';
+    case VISITOR = 'visitor';
+    case VISITOR_HOST = 'visitor Host';
 
     /**
      * Get the label for the given enum value.

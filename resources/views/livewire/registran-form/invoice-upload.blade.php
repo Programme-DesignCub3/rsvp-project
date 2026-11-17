@@ -1,6 +1,5 @@
 <div wire:key="invoice-upload-content-{{ $this->event->id }}">
-    <div class="mb-4 rounded-lg border border-black/10 bg-white/80 p-3 text-sm font-semibold text-black"
-        wire:key="payment-detail-helper-{{ $this->event->id }}">
+    <div class="mb-3 text-xs text-black/50" wire:key="payment-detail-helper-{{ $this->event->id }}">
         @if ($this->paymentAmountLabel)
             Payment detail will update automatically when you change visitor type or food selection.
         @else
@@ -44,12 +43,24 @@
                     <p class="text-sm font-extrabold uppercase">Total payment</p>
                     <p class="whitespace-nowrap text-2xl font-extrabold">{{ $this->paymentAmountLabel }}</p>
                 </div>
+
+                @if ($previewOnly ?? false)
+                    <p class="mt-3 border-t border-black/20 pt-3 text-xs font-semibold">
+                        @if (($this->paymentTotalAmount() ?? 0) > 0)
+                            A unique code will be added automatically after you submit. The final amount is shown on the
+                            payment page.
+                        @else
+                            No payment needed for this registration.
+                        @endif
+                    </p>
+                @endif
             </div>
         @endif
     </div>
 
-    <div wire:key="payment-proof-upload-{{ $this->event->id }}">
-        @if ($this->userShouldUploadInvoice)
+    @unless ($previewOnly ?? false)
+        <div wire:key="payment-proof-upload-{{ $this->event->id }}">
+            @if ($this->userShouldUploadInvoice)
             <p class="font-semibold">Please transfer payment to <br>
                 <strong class="text-lg">
                     Bank Jago 101916230906 a/n Stefanny Liezal
@@ -94,6 +105,7 @@
                     @enderror
                 </div>
             </div>
-        @endif
-    </div>
+            @endif
+        </div>
+    @endunless
 </div>

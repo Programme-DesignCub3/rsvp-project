@@ -78,6 +78,7 @@ class Event extends Model implements HasMedia
     protected $casts = [
         'session' => 'array',
         'hide' => 'boolean',
+        'registration_counter' => 'integer',
     ];
 
     /**

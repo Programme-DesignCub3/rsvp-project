@@ -711,13 +711,42 @@ class RegistranFormComponent extends Component
         $this->validate();
         $this->validateOfflineRequirements();
 
+        $withPaymentCode = (bool) $this->event->detail->enable_unique_payment_code;
+
         $this->visitor = app(VisitorRegistrationService::class)->createForEvent(
             $this->event,
             $this->visitorData(),
             $this->payment,
-            $this->shouldStorePaymentProof()
+            $this->shouldStorePaymentProof(),
+            true,
+            $withPaymentCode,
+            (int) ($this->paymentTotalAmount() ?? 0),
+            $this->paymentBerita()
         );
+
+        if ($withPaymentCode) {
+            $this->redirect($this->visitor->payment_url);
+
+            return;
+        }
+
         $this->isSubmitted = true;
+    }
+
+    /**
+     * Render the payment BERITA now so later template changes only affect new visitors.
+     */
+    protected function paymentBerita(): ?string
+    {
+        if (! $this->event->detail->enable_unique_payment_code) {
+            return null;
+        }
+
+        return trim(str_replace(
+            ['{name}', '{type}'],
+            [(string) $this->name, (string) $this->selectedVisitorTypeLabel()],
+            (string) config('registration.payment_berita_template', '{name} {type}')
+        ));
     }
 
     /**
@@ -831,7 +860,11 @@ class RegistranFormComponent extends Component
             $uniqueVisitorTypes[$visitorType->value] = $visitorType;
         }
 
-        return array_values($uniqueVisitorTypes);
+        $uniqueVisitorTypes = array_values($uniqueVisitorTypes);
+
+        usort($uniqueVisitorTypes, fn (VisitorType $a, VisitorType $b): int => strcasecmp((string) $a->getLabel(), (string) $b->getLabel()));
+
+        return $uniqueVisitorTypes;
     }
 
     /**
@@ -1036,7 +1069,10 @@ class RegistranFormComponent extends Component
             return;
         }
 
-        if ($this->event->detail->show_invoice_upload && $this->userShouldUploadInvoice()) {
+        if (! $this->event->detail->enable_unique_payment_code
+            && $this->event->detail->show_invoice_upload
+            && $this->userShouldUploadInvoice()
+        ) {
             $this->validatePaymentProof();
         }
 
@@ -1260,6 +1296,7 @@ class RegistranFormComponent extends Component
     {
         return $this->payment !== null
             && $this->isOfflineSelected()
+            && ! $this->event->detail->enable_unique_payment_code
             && $this->event->detail->show_invoice_upload
             && $this->userShouldUploadInvoice();
     }

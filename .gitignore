@@ -17,3 +17,11 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# AI tooling
+.gemini/
+AGENTS.md
+GEMINI.md
+boost.json
+opencode.json
+.phpunit.result.cache

@@ -864,7 +864,11 @@ class Bni11Aug extends Component
             $uniqueVisitorTypes[$visitorType->value] = $visitorType;
         }
 
-        return array_values($uniqueVisitorTypes);
+        $uniqueVisitorTypes = array_values($uniqueVisitorTypes);
+
+        usort($uniqueVisitorTypes, fn (VisitorType $a, VisitorType $b): int => strcasecmp((string) $a->getLabel(), (string) $b->getLabel()));
+
+        return $uniqueVisitorTypes;
     }
 
     /**

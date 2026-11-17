@@ -347,6 +347,12 @@ class EventResource extends Resource
                     ->description('Configure proof of payment and registration fees.')
                     ->columns(2)
                     ->schema([
+                        Toggle::make('enable_unique_payment_code')
+                            ->label(__('Enable Unique Payment Code'))
+                            ->helperText('Adds the registration number to the total and sends registrants to the payment page.')
+                            ->default(true)
+                            ->columnSpanFull(),
+
                         Toggle::make('show_invoice_upload')
                             ->label(__('Require Payment Proof'))
                             ->helperText('The upload is skipped automatically when the calculated total is free.')

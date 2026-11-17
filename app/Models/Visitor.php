@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
@@ -32,6 +33,11 @@ class Visitor extends Model implements HasMedia
         'is_offline' => 'boolean',
         'is_online' => 'boolean',
         'food' => FoodCast::class,
+        'registration_sequence' => 'integer',
+        'payment_base_amount' => 'integer',
+        'payment_amount' => 'integer',
+        'payment_verified' => 'boolean',
+        'payment_verified_at' => 'datetime',
     ];
 
     public function registerMediaCollections(): void
@@ -46,6 +52,23 @@ class Visitor extends Model implements HasMedia
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function paymentVerifier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'payment_verified_by');
+    }
+
+    public function getPaymentUrlAttribute(): ?string
+    {
+        if ($this->registration_sequence === null || $this->event === null) {
+            return null;
+        }
+
+        return URL::signedRoute('event.payment', [
+            'event' => $this->event->slug,
+            'visitor' => $this->id,
+        ]);
     }
 
     /**

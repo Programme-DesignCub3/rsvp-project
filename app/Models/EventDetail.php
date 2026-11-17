@@ -40,6 +40,7 @@ class EventDetail extends Model implements HasMedia
         'offline_visitor_type_list' => 'array',
         'excluded_payment_list' => 'array',
         'show_invoice_upload' => 'boolean',
+        'enable_unique_payment_code' => 'boolean',
         'food_type' => FoodType::class,
         // 'online_time' => TimeCast::class,
         // 'offline_time' => TimeCast::class

@@ -14,6 +14,7 @@ use Filament\Resources\Pages\ManageRelatedRecords;
 use Filament\Tables;
 use Filament\Tables\Actions\ExportAction;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -69,6 +70,8 @@ class ManageVisitor extends ManageRelatedRecords
                 SelectFilter::make('Type')
                     ->multiple()
                     ->options(VisitorType::class),
+                TernaryFilter::make('payment_verified')
+                    ->label('Payment Verified'),
             ])
             ->defaultSort('created_at', 'desc')
             ->headerActions([
@@ -86,6 +89,8 @@ class ManageVisitor extends ManageRelatedRecords
             ->actions([
                 // Tables\Actions\ViewAction::make(),
                 // Tables\Actions\EditAction::make(),
+                EventTable::paymentVerificationAction(),
+                EventTable::resendPaymentEmailAction(),
                 Tables\Actions\DeleteAction::make()
                     ->modalDescription('Are you sure you want to delete this visitor? This action cannot be undone, and all data will be lost (including payment proof).'),
             ])

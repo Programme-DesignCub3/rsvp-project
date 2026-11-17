@@ -30,9 +30,24 @@ class RegistranFormComponentTest extends TestCase
             'event' => $event,
         ])
             ->assertSet('sessions', ['offline'])
-            ->assertSet('visitor_type.0', VisitorType::VISITOR)
+            ->assertSet('visitor_type.0', VisitorType::ALTITUDE)
             ->assertSet('visitor_type.1', VisitorType::MAGNITUDE)
-            ->assertSet('visitor_type.2', VisitorType::ALTITUDE);
+            ->assertSet('visitor_type.2', VisitorType::VISITOR);
+    }
+
+    public function test_available_visitor_types_are_sorted_alphabetically_for_event_overrides(): void
+    {
+        $event = $this->createEvent(['session' => ['offline']], [
+            'override_offline_visitor_type' => true,
+            'offline_visitor_type_list' => [VisitorType::VISITOR->value, VisitorType::MAGNITUDE->value],
+        ]);
+
+        Livewire::test(RegistranFormComponent::class, [
+            'slug' => $event->slug,
+            'event' => $event,
+        ])
+            ->assertSet('visitor_type.0', VisitorType::MAGNITUDE)
+            ->assertSet('visitor_type.1', VisitorType::VISITOR);
     }
 
     public function test_it_switches_single_checkable_session_and_resets_status(): void
@@ -1284,6 +1299,7 @@ class RegistranFormComponentTest extends TestCase
             'offline_foods' => $detailAttributes['offline_foods'] ?? null,
             'food_type' => $detailAttributes['food_type'] ?? FoodType::BUFFET,
             'show_invoice_upload' => $detailAttributes['show_invoice_upload'] ?? false,
+            'enable_unique_payment_code' => $detailAttributes['enable_unique_payment_code'] ?? false,
             'food_required' => $detailAttributes['food_required'] ?? false,
             'override_online_visitor_type' => $detailAttributes['override_online_visitor_type'] ?? false,
             'override_offline_visitor_type' => $detailAttributes['override_offline_visitor_type'] ?? false,
