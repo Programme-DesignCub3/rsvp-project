@@ -226,6 +226,7 @@ class AttendanceStatusNotCheckableTest extends TestCase
             'offline_foods' => $detailAttributes['offline_foods'] ?? null,
             'food_type' => $detailAttributes['food_type'] ?? FoodType::BUFFET,
             'show_invoice_upload' => $detailAttributes['show_invoice_upload'] ?? false,
+            'enable_unique_payment_code' => $detailAttributes['enable_unique_payment_code'] ?? false,
             'food_required' => $detailAttributes['food_required'] ?? false,
             'override_online_visitor_type' => $detailAttributes['override_online_visitor_type'] ?? false,
             'override_offline_visitor_type' => $detailAttributes['override_offline_visitor_type'] ?? false,

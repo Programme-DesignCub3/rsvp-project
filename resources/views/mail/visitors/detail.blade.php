@@ -4,11 +4,26 @@
 Hi {{ $visitor->name }},
 
 Thank you for registering to our event. Here are the details of the event you have registered for:
+
+@if ($visitor->payment_amount !== null)
+- Registration No: #{{ $visitor->registration_sequence }}
+- Total Payment: {{ $visitor->payment_amount > 0 ? 'Rp ' . number_format($visitor->payment_amount, 0, ',', '.') : 'Gratis' }}
+
+@if ($visitor->payment_amount > 0)
+- Transfer to: Bank Jago 101916230906 a/n Stefanny Liezal
+- BERITA: {{ $visitor->payment_berita }}
+@endif
+
+<x-mail::button :url="$visitor->payment_url">
+View Payment Details
+</x-mail::button>
+@endif
+
 @if ($visitor->is_online)
 - Date: {{ $visitor->event->start_date_full_formatted }}
 - Time: {{ $visitor->event->detail->online_time_no_seconds }}
 - Location: Online
-- Admission: Free
+- Admission: {{ $visitor->payment_amount === null || $visitor->payment_amount === 0 ? 'Free' : 'Paid' }}
 
 <x-mail::button url="https://drive.google.com/drive/folders/1tJ4z08SV7Pd3d3n5q06UTmeiXFIV2RuZ">
 Download Zoom Meeting Background

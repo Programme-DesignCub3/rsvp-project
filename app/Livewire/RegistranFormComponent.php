@@ -262,7 +262,7 @@ class RegistranFormComponent extends Component
     public function rules(): array
     {
         $rules = [
-            'sessions' => ['required', 'array', 'min:1'],
+            'sessions' => $this->sessionValidationRules(),
             'sessions.*' => ['required', Rule::in($this->availableSessionValues())],
             'name' => ['required'],
             'email' => [
@@ -352,7 +352,7 @@ class RegistranFormComponent extends Component
     }
 
     /**
-     * Return status choices based on whether the visitor selected an online session.
+     * Return attendance choices for a checkable-one event with a selected session.
      *
      * @return array<int, VisitorStatusType>
      */
@@ -711,13 +711,42 @@ class RegistranFormComponent extends Component
         $this->validate();
         $this->validateOfflineRequirements();
 
+        $withPaymentCode = (bool) $this->event->detail->enable_unique_payment_code;
+
         $this->visitor = app(VisitorRegistrationService::class)->createForEvent(
             $this->event,
             $this->visitorData(),
             $this->payment,
-            $this->shouldStorePaymentProof()
+            $this->shouldStorePaymentProof(),
+            true,
+            $withPaymentCode,
+            (int) ($this->paymentTotalAmount() ?? 0),
+            $this->paymentBerita()
         );
+
+        if ($withPaymentCode) {
+            $this->redirect($this->visitor->payment_url);
+
+            return;
+        }
+
         $this->isSubmitted = true;
+    }
+
+    /**
+     * Render the payment BERITA now so later template changes only affect new visitors.
+     */
+    protected function paymentBerita(): ?string
+    {
+        if (! $this->event->detail->enable_unique_payment_code) {
+            return null;
+        }
+
+        return trim(str_replace(
+            ['{name}', '{type}'],
+            [(string) $this->name, (string) $this->selectedVisitorTypeLabel()],
+            (string) config('registration.payment_berita_template', '{name} {type}')
+        ));
     }
 
     /**
@@ -831,7 +860,11 @@ class RegistranFormComponent extends Component
             $uniqueVisitorTypes[$visitorType->value] = $visitorType;
         }
 
-        return array_values($uniqueVisitorTypes);
+        $uniqueVisitorTypes = array_values($uniqueVisitorTypes);
+
+        usort($uniqueVisitorTypes, fn (VisitorType $a, VisitorType $b): int => strcasecmp((string) $a->getLabel(), (string) $b->getLabel()));
+
+        return $uniqueVisitorTypes;
     }
 
     /**
@@ -842,6 +875,35 @@ class RegistranFormComponent extends Component
     protected function availableSessionValues(): array
     {
         return array_values(array_intersect($this->event->session ?? [], self::SELECTABLE_SESSIONS));
+    }
+
+    /**
+     * Return the session validation rules for the current registration state.
+     *
+     * @return array<int, string>
+     */
+    protected function sessionValidationRules(): array
+    {
+        if ($this->canSkipSessionSelection()) {
+            return ['array'];
+        }
+
+        return ['required', 'array', 'min:1'];
+    }
+
+    /**
+     * Determine whether an absent Magnitude member may register without a session.
+     */
+    protected function canSkipSessionSelection(): bool
+    {
+        return $this->event->checkable
+            && $this->event->checkable_one
+            && $this->isVisitorTypeMagnitude()
+            && $this->isEmptySessions()
+            && in_array($this->status, [
+                VisitorStatusType::SAKIT->value,
+                VisitorStatusType::SUBSTITUTE->value,
+            ], true);
     }
 
     /**
@@ -965,7 +1027,7 @@ class RegistranFormComponent extends Component
         }
 
         if ($this->event->checkable && $this->event->checkable_one) {
-            return $this->isEmptySessions();
+            return true;
         }
 
         return $this->event->is_online_event
@@ -980,9 +1042,13 @@ class RegistranFormComponent extends Component
      */
     protected function availableStatusValues(): array
     {
+        $statuses = $this->event->checkable_one && ! $this->isEmptySessions()
+            ? $this->getCheckableOneStatusType()
+            : $this->getStatusType();
+
         return array_map(
             fn (VisitorStatusType $status): string => $status->value,
-            $this->getStatusType()
+            $statuses
         );
     }
 
@@ -1003,7 +1069,10 @@ class RegistranFormComponent extends Component
             return;
         }
 
-        if ($this->event->detail->show_invoice_upload && $this->userShouldUploadInvoice()) {
+        if (! $this->event->detail->enable_unique_payment_code
+            && $this->event->detail->show_invoice_upload
+            && $this->userShouldUploadInvoice()
+        ) {
             $this->validatePaymentProof();
         }
 
@@ -1227,6 +1296,7 @@ class RegistranFormComponent extends Component
     {
         return $this->payment !== null
             && $this->isOfflineSelected()
+            && ! $this->event->detail->enable_unique_payment_code
             && $this->event->detail->show_invoice_upload
             && $this->userShouldUploadInvoice();
     }

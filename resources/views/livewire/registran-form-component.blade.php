@@ -17,6 +17,10 @@
                         @include('livewire.registran-form.offline-details')
                     @endif
 
+                    @if ($this->event->detail->enable_unique_payment_code)
+                        @include('livewire.registran-form.invoice-upload', ['previewOnly' => true])
+                    @endif
+
                     @include('livewire.registran-form.submit-button')
                 </form>
             </div>

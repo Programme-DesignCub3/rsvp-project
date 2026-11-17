@@ -98,6 +98,17 @@ class EventController extends Controller
         ]);
     }
 
+    public function payment(Event $event, Visitor $visitor)
+    {
+        abort_unless((int) $visitor->event_id === (int) $event->id, 404);
+        abort_if($visitor->registration_sequence === null, 404);
+
+        return view('event.payment', [
+            'event' => $event->loadMissing('detail'),
+            'visitor' => $visitor,
+        ]);
+    }
+
     public function register($slug)
     {
         $event = Event::with('detail')->where('slug', $slug)->first();

@@ -268,7 +268,7 @@ class Bni11Aug extends Component
     public function rules(): array
     {
         $rules = [
-            'sessions' => ['required', 'array', 'min:1'],
+            'sessions' => $this->sessionValidationRules(),
             'sessions.*' => ['required', Rule::in($this->availableSessionValues())],
             'name' => ['required'],
             'email' => [
@@ -359,6 +359,20 @@ class Bni11Aug extends Component
         return [
             VisitorStatusType::SAKIT,
             VisitorStatusType::SUBSTITUTE,
+        ];
+    }
+
+    /**
+     * Return attendance choices for a checkable-one event with a selected session.
+     *
+     * @return array<int, VisitorStatusType>
+     */
+    #[Computed]
+    public function getCheckableOneStatusType(): array
+    {
+        return [
+            VisitorStatusType::HADIR,
+            VisitorStatusType::HADIR_TESTIMONIAL,
         ];
     }
 
@@ -850,7 +864,11 @@ class Bni11Aug extends Component
             $uniqueVisitorTypes[$visitorType->value] = $visitorType;
         }
 
-        return array_values($uniqueVisitorTypes);
+        $uniqueVisitorTypes = array_values($uniqueVisitorTypes);
+
+        usort($uniqueVisitorTypes, fn (VisitorType $a, VisitorType $b): int => strcasecmp((string) $a->getLabel(), (string) $b->getLabel()));
+
+        return $uniqueVisitorTypes;
     }
 
     /**
@@ -861,6 +879,35 @@ class Bni11Aug extends Component
     protected function availableSessionValues(): array
     {
         return array_values(array_intersect($this->event->session ?? [], self::SELECTABLE_SESSIONS));
+    }
+
+    /**
+     * Return the session validation rules for the current registration state.
+     *
+     * @return array<int, string>
+     */
+    protected function sessionValidationRules(): array
+    {
+        if ($this->canSkipSessionSelection()) {
+            return ['array'];
+        }
+
+        return ['required', 'array', 'min:1'];
+    }
+
+    /**
+     * Determine whether an absent Magnitude member may register without a session.
+     */
+    protected function canSkipSessionSelection(): bool
+    {
+        return $this->event->checkable
+            && $this->event->checkable_one
+            && $this->isVisitorTypeMagnitude()
+            && $this->isEmptySessions()
+            && in_array($this->status, [
+                VisitorStatusType::SAKIT->value,
+                VisitorStatusType::SUBSTITUTE->value,
+            ], true);
     }
 
     /**
@@ -984,7 +1031,7 @@ class Bni11Aug extends Component
         }
 
         if ($this->event->checkable && $this->event->checkable_one) {
-            return $this->isEmptySessions();
+            return true;
         }
 
         return $this->event->is_online_event
@@ -999,9 +1046,13 @@ class Bni11Aug extends Component
      */
     protected function availableStatusValues(): array
     {
+        $statuses = $this->event->checkable_one && ! $this->isEmptySessions()
+            ? $this->getCheckableOneStatusType()
+            : $this->getStatusType();
+
         return array_map(
             fn (VisitorStatusType $status): string => $status->value,
-            $this->getStatusType()
+            $statuses
         );
     }
 

@@ -32,6 +32,10 @@ Route::group(['prefix' => 'event', 'as' => 'event.'], function () {
     Route::get('{slug}', [EventController::class, 'show'])->name('show');
 
     Route::get('{slug}/register', [EventController::class, 'register'])->name('register');
+
+    Route::get('{event:slug}/payment/{visitor}', [EventController::class, 'payment'])
+        ->middleware('signed')
+        ->name('payment');
 });
 
 Route::group(['prefix' => 'members', 'as' => 'members.'], function () {

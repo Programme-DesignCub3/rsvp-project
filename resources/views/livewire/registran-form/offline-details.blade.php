@@ -23,7 +23,11 @@
     @endif
 
     <div wire:key="offline-invoice-upload-{{ $this->event->id }}">
-        @if ($this->event->detail->show_invoice_upload && ($this->userShouldUploadInvoice || $this->paymentAmountLabel))
+        @if (
+            ! $this->event->detail->enable_unique_payment_code
+            && $this->event->detail->show_invoice_upload
+            && ($this->userShouldUploadInvoice || $this->paymentAmountLabel)
+        )
             @include('livewire.registran-form.invoice-upload')
         @endif
     </div>

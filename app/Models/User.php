@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
+use App\Enums\UserRole;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,15 +18,13 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        if ($panel->getId() === 'admin') {
-            return $this->email === 'dean@designcub3.com';
-        } else {
-            return $this->email === 'magnitude.bni@gmail.com';
-        }
+        return match ($panel->getId()) {
+            'admin' => $this->role === UserRole::Admin || $this->email === 'dean@designcub3.com',
+            'bendahara' => $this->role === UserRole::Bendahara,
+            'guest' => $this->email === 'magnitude.bni@gmail.com',
+            default => false,
+        };
     }
-
-
-
 
     /**
      * The attributes that are mass assignable.
@@ -36,6 +35,7 @@ class User extends Authenticatable implements FilamentUser
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -55,5 +55,10 @@ class User extends Authenticatable implements FilamentUser
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'role' => UserRole::class,
+    ];
+
+    protected $attributes = [
+        'role' => UserRole::Guest->value,
     ];
 }
